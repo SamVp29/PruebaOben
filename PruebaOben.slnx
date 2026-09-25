@@ -1,0 +1,15 @@
+<Solution>
+  <Project Path="Backend/PruebaOben.Api/PruebaOben.Api.csproj" />
+  <Project Path="Backend/PruebaOben.Application/PruebaOben.Application.csproj" />
+  <Project Path="Backend/PruebaOben.Domain/PruebaOben.Domain.csproj" />
+  <Project Path="Backend/PruebaOben.Infrastructure/PruebaOben.Infrastructure.csproj" />
+  <Project Path="Database/PruebaOben.Database/PruebaOben.Database.sqlproj" Id="4199a305-5771-4105-8131-29b01313875c">
+    <Build />
+    <Deploy />
+  </Project>
+  <Project Path="Frontend/PruebaOben/PruebaOben.Shared/PruebaOben.Shared.csproj" />
+  <Project Path="Frontend/PruebaOben/PruebaOben.Web/PruebaOben.Web.csproj" />
+  <Project Path="Frontend/PruebaOben/PruebaOben/PruebaOben.csproj">
+    <Deploy Solution="Debug|*" />
+  </Project>
+</Solution>
