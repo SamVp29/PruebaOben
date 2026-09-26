@@ -1,7 +1,15 @@
 PROYECTO PRUEBAOBEN - BACKEND
 ============================
 
-Documento: 03-Backend.txt
+Documento: Backend/backend.md
+
+Alcance técnico:
+- La API y la lógica de aplicación están escritas en C#.
+- El acceso a datos usa SQL escrito directamente con
+  Microsoft.Data.SqlClient.
+- No se utiliza Entity Framework, ORM ni una librería de mapeo.
+- BCrypt, JWT y Swagger se usan para tareas concretas y no reemplazan
+  el acceso SQL directo.
 
 1. ESTRUCTURA
 -------------
@@ -182,8 +190,10 @@ async/await: Las operaciones de base de datos se ejecutan de forma asíncrona pa
 no bloquear innecesariamente el hilo mientras se espera la respuesta
 de SQL Server.
 
-NOTA: En GetByIdAsync existe un uso de AddWithValue que será normalizado a
-SqlDbType explícito para mantener un estilo consistente.
+NOTA: GetByIdAsync utiliza AddWithValue para el parámetro @id. El resto
+de parámetros del repositorio especifica el tipo y, cuando aplica, el
+tamaño. AddWithValue también crea un parámetro; no se concatena el dato
+recibido al texto SQL.
 
 Ejemplo:
 command.Parameters.Add("@id", SqlDbType.Int).Value = id;
@@ -216,10 +226,12 @@ TrustServerCertificate: True
 Se eliminó la clave JWT hardcodeada del código fuente.
 Se creó la interfaz IJwtSettings en Application para abstraer la configuración necesaria por AuthService.
 La implementación JwtSettings se encuentra en API.
-La clave se obtiene mediante la variable de entorno:Jwt__Key
-key: "prueba_oben_uso_ddd_clean_arquitectura_2026
-ASP.NET Core interpreta: Jwt__Key
-como: Jwt:Key
+La clave se obtiene mediante la variable de entorno `Jwt__Key`.
+ASP.NET Core interpreta el doble guion bajo como separador de secciones:
+`Jwt__Key` corresponde a `Jwt:Key`.
+No se debe guardar ni compartir el valor del secreto en el código o en
+este documento. Si falta la configuración, la API detiene el inicio con
+un error explícito.
 
 Flujo: Variable de entorno-> Program.cs-> JwtSettings-> IJwtSettings-> AuthService-> Firma JWT
 
@@ -255,6 +267,10 @@ el acoplamiento y facilita las pruebas y el mantenimiento."
 ----------------------
 Archivo: Api/Controllers/UsersController.cs
 Responsabilidad: Exponer mediante HTTP las operaciones de gestión de usuarios.
+El controlador está marcado con `[Authorize]`: estas cinco rutas
+requieren un JWT válido. Primero se inicia sesión y luego se envía el
+JWT obtenido en la cabecera HTTP `Authorization`, usando el esquema
+Bearer.
 
 Endpoints:
 GET /api/users
@@ -283,11 +299,16 @@ Respuestas utilizadas:
 404 Not Found: El usuario solicitado no existe.
 409 Conflict: Se intentó crear un usuario con un correo que ya existe.
 
+SQL Server también tiene restricciones UNIQUE para username y email.
+Sin embargo, los conflictos que lance SQL Server no se traducen
+actualmente a 409; el Controller solo captura la InvalidOperationException
+que UserService utiliza para el email duplicado al crear.
+
 Sustentación: "El Controller funciona como punto de entrada HTTP. Recibe las solicitudes, valida el flujo básico de la petición, llama al servicio correspondiente y transforma el resultado en una respuesta HTTP. La lógica de aplicación permanece en UserService y el acceso a datos en UserRepository."
 
 5.5 AuthController
 ---------------------
-Archivo: Api/Controllers/AuthController.cs
+Archivo: Api/Controllers/AuthControllercs.cs
 Responsabilidad: Exponer mediante HTTP el proceso de autenticación.
 
 Endpoint: POST /api/auth/login
@@ -302,7 +323,14 @@ Si la autenticación es correcta: 200 OK con el JWT.
 El Controller no genera directamente el JWT ni verifica la contraseña. Esa responsabilidad pertenece a AuthService.
 
 Sustentación: "AuthController es el punto de entrada HTTP para la autenticación. Recibe las credenciales y delega el proceso en AuthService. Si la autenticación es correcta devuelve el JWT; si falla devuelve 401 Unauthorized."
-Estado:Pendiente de prueba en Swagger.
+El endpoint está implementado. La prueba de login y el uso del token
+contra rutas protegidas deben confirmarse manualmente en Swagger.
+
+5.6 Endpoint de ejemplo
+-----------------------
+Program.cs también conserva `/weatherforecast`, el endpoint de ejemplo
+del template de ASP.NET Core. No forma parte de los casos de uso de
+PruebaOben.
 
 6. APPLICATION
 --------------
@@ -323,7 +351,7 @@ Application/
 |
 +-- Services/
 +-- AuthService.cs
-+-- UserService.cs (pendiente)
++-- UserService.cs
 
 DTO significa Data Transfer Object.
 Sirve para controlar los datos que entran y salen de los casos de uso,
@@ -337,8 +365,10 @@ Esto evita exponer información sensible al cliente.
 6.1 UserResponseDto
 -------------------
 Define lo que la API devuelve al cliente.
-Incluye Id, Username, FullName, Email, Rol, Active, CreatedAt y UpdatedAt.
+Incluye id, username, fullname, email, rol, active, createdAt y updatedAt.
 NO incluye PasswordHash.
+Aunque updatedAt existe en el DTO, el mapeo actual no le asigna el valor
+de la entidad, por lo que la respuesta lo devuelve como null.
 
 ¿Para qué sirve?
 Controlar la información que sale de la aplicación hacia el cliente.
@@ -353,8 +383,8 @@ Define los datos necesarios para crear un usuario: username, fullname, email, pa
 Recibe Password, no PasswordHash.
 
 ¿Por qué?
-El cliente proporciona la contraseña original durante la creación.
-Application deberá convertirla en un hash antes de almacenarla.
+El cliente proporciona la contraseña durante la creación.
+UserService la convierte en un hash antes de almacenarla.
 Nunca se debe almacenar la contraseña original directamente.
 
 El proceso previsto es: Password->BCrypt->PasswordHash->SQL Server
@@ -369,7 +399,9 @@ operación.
 6.4 LoginDto
 -------------
 Define los datos necesarios para iniciar sesión: email, password
-Utiliza validaciones de DataAnnotations: [Required], [EmailAddress]
+Utiliza validaciones de DataAnnotations: [Required], [EmailAddress].
+Con `[ApiController]`, un email ausente o con formato incorrecto, o una
+contraseña ausente, produce HTTP 400 por ModelState.
 
 Ejemplo conceptual: El email es obligatorio y debe tener formato de correo.
 La contraseña también es obligatoria.
@@ -420,7 +452,8 @@ Actualmente realiza:
 * Crear usuarios.
 * Actualizar usuarios.
 * Eliminar lógicamente usuarios.
-* Validar que el correo no esté registrado al crear.
+* Comprobar que el correo no esté registrado al crear (validación
+  limitada; ver la sección de manejo de errores).
 * Generar el hash de la contraseña mediante BCrypt.
 * Convertir User a UserResponseDto.
 
@@ -431,6 +464,9 @@ Flujo de consulta: IUserRepository-> User-> UserService-> UserResponseDto-> Cont
 Mapeo:
 User -> UserResponseDto
 El DTO no incluye passwordHash ni deletedAt.
+Este mapeo se escribe manualmente en `MapToResponse`. No se usa
+AutoMapper ni otro mapper: son asignaciones C# explícitas y fáciles de
+seguir.
 
 Sustentación:
 "UserService contiene los casos de uso de usuarios y coordina al repositorio. Además, se encarga de transformar las entidades en DTOs para no exponer directamente el modelo interno de la aplicación."
@@ -439,7 +475,8 @@ La contraseña se hashea antes de enviarla al Repository y el Repository se mant
 
 6.7.2 BCrypt
 -----------
-BCrypt se utiliza para verificar la contraseña.
+BCrypt se utiliza para generar el hash al crear un usuario y para
+verificar la contraseña durante el login.
 Conceptualmente:
 BCrypt.Verify(
 contraseñaIngresada,
@@ -473,15 +510,10 @@ usuario autenticado a partir del token.
 6.7.4 SymmetricSecurityKey
 -------------
 Se utiliza una clave simétrica para firmar el JWT.
-La clave actualmente se encuentra escrita directamente en el código: "clave-super-secreta-para-oben-123"
-
-Esto funciona para la prueba local, pero NO es la configuración final
-recomendada para producción.
-Posteriormente la clave debe trasladarse a configuración segura, por ejemplo:
-appsettings.json para configuración no sensible de desarrollo.
-User Secrets durante desarrollo.
-Variables de entorno.
-Secret Manager o un servicio de secretos en producción.
+La clave no está escrita directamente en el código: API la lee de la
+configuración `Jwt:Key`, que se proporciona mediante `Jwt__Key`, y la
+inyecta como `IJwtSettings`. En producción, el valor debe mantenerse en
+un almacén de secretos adecuado al entorno y nunca en el repositorio.
 
 6.7.5 HMAC-SHA256
 ----------
@@ -532,10 +564,18 @@ al repositorio que lo persista."
 
 Flujo: Controller->IUserService->UserService->IUserRepository->UserRepository->SQL Server
 
-7. FLUJO BACKEND PREVISTO
+7. FLUJO BACKEND IMPLEMENTADO
 -------------------------
 HTTP Request -> Controller -> Application Service -> IUserRepository -> UserRepository 
     -> SqlConnection / SqlCommand -> SQL Server -> Trigger -> auditLogs
+
+El repositorio construye y ejecuta SQL parametrizado directamente con
+Microsoft.Data.SqlClient; no interviene un ORM.
+
+Los triggers pueden escribir en auditLogs, pero el backend todavía no
+establece `SESSION_CONTEXT('UserId')` en la conexión antes de las
+operaciones. Por tanto, `cambioRealizado` no queda asociado al usuario
+autenticado desde este backend hasta que se implemente esa integración.
 
 8. CQRS
 -------
@@ -543,80 +583,70 @@ No se utilizará CQRS en esta prueba.
 Razón: El alcance actual es CRUD + autenticación + auditoría. Separar modelos
 de lectura y escritura agregaría complejidad sin una necesidad clara.
 
-9. SEGURIDAD PREVISTA
+9. SEGURIDAD IMPLEMENTADA Y PENDIENTE
 ---------------------
-- Consultas SQL parametrizadas.
-- No exponer PasswordHash.
-- Hash de contraseñas en C#.
-- BCrypt para verificación de contraseñas.
-- JWT para autenticación.
-- Claims para representar información del usuario.
-- Validación de entrada.
-- SESSION_CONTEXT para identificar al usuario que realiza cambios.
-- Borrado lógico.
-- No guardar contraseñas en texto plano.
+- Implementado: consultas SQL parametrizadas.
+- Implementado: PasswordHash no se incluye en UserResponseDto.
+- Implementado: contraseñas hasheadas con BCrypt; nunca se persiste la
+  contraseña en texto plano.
+- Implementado: JWT firmado con HMAC-SHA256, con expiración de una hora.
+- Implementado: validación de firma y expiración del JWT en API.
+- Implementado: UsersController requiere autenticación JWT.
+- Implementado: LoginDto valida email requerido/formato y contraseña
+  requerida mediante DataAnnotations.
+- Implementado: borrado lógico mediante active y deletedAt.
+- Parcial: CreateUserDto y UpdateUserDto no tienen DataAnnotations;
+  solamente se comprueba el email duplicado al crear en UserService.
+- Pendiente: establecer SESSION_CONTEXT desde C# para que la auditoría
+  identifique al actor autenticado.
 
 10. MAPEO ENTITY -> DTO
-________________________
-Pendiente.
+-----------------------
+El mapeo ya está implementado manualmente en
+`UserService.MapToResponse(User)`. Copia al `UserResponseDto` los campos
+públicos permitidos y omite `passwordHash` y `deletedAt`.
 
-El mapeo permitirá transformar: User->UserResponseDto
-Esto evita devolver directamente la entidad del dominio desde el API.
+No se usa una librería de mapeo: para este modelo pequeño, asignar las
+propiedades explícitamente evita agregar una dependencia y hace visible
+qué datos se devuelven. Actualmente falta asignar `updatedAt` aunque la
+propiedad existe en la entidad y el DTO.
 
-Ejemplo conceptual:
-User contiene: passwordHash
+Sustentación: "Convierto User a UserResponseDto con asignaciones C#
+explícitas. No uso AutoMapper ni un ORM; así controlo directamente qué
+campos salen de la API y no expongo passwordHash."
 
-UserResponseDto NO contiene: passwordHash
-Por eso el servicio será responsable de construir el DTO de respuesta
-a partir de la entidad.
-
-Sustentación: "El mapeo separa el modelo interno de dominio del contrato que expongo
-hacia el cliente. Así puedo controlar exactamente qué datos salen de
-la aplicación."MAPEO ENTITY -> DTO
-
-Pendiente.
-El mapeo permitirá transformar: User->UserResponseDto
-Esto evita devolver directamente la entidad del dominio desde el API.
-
-Ejemplo conceptual:
-User contiene: passwordHash
-
-UserResponseDto NO contiene: passwordHash
-Por eso el servicio será responsable de construir el DTO de respuesta
-a partir de la entidad.
-
-Sustentación: "El mapeo separa el modelo interno de dominio del contrato que expongo
-hacia el cliente. Así puedo controlar exactamente qué datos salen de
-la aplicación."
-
-11. MANEJO DE ERRORES DE APLICACIÓN
+11. MANEJO DE ERRORES Y VALIDACIÓN
 _______________________________
-Pendiente.
-
-Se deberá definir cómo manejar:
-usuario inexistente
-usuario inactivo
-email duplicado
-username duplicado
-datos inválidos
-errores de persistencia
-errores inesperados
-
-No se debe devolver información sensible de excepciones directamente
-al cliente.
-El Controller posteriormente traducirá los resultados de Application
-a códigos HTTP apropiados.
+Hay manejo básico implementado en controllers y DTOs, pero no un
+mecanismo global o completo:
+- Login: credenciales incorrectas, usuario inexistente o inactivo
+  producen 401 Unauthorized. LoginDto valida campos requeridos y formato
+  de email, que `[ApiController]` responde como 400 Bad Request.
+- Consultas, actualización y borrado de un usuario inexistente (o
+  lógicamente eliminado): 404 Not Found.
+- Creación con email que UserService encuentra existente: 409 Conflict.
+- CreateUserDto y UpdateUserDto no declaran validaciones de campos.
+- SQL Server tiene restricciones UNIQUE para username y email. La
+  violación de esas restricciones no se captura como 409 actualmente;
+  en particular, UpdateAsync tampoco comprueba previamente duplicados.
+- No hay manejo general para errores de persistencia o excepciones
+  inesperadas. No se debe afirmar que esos casos están resueltos ni que
+  se devuelven mensajes uniformes.
 
 12. DEPENDENCY INJECTION
 ------------------------
 Archivo: Api/Program.cs
 Responsabilidad: Registrar las implementaciones que utilizará ASP.NET Core mediante Inyección de Dependencias.
 Se registraron:
+SqlConnectionFactory como Singleton.
 IUserRepository -> UserRepository
 IUserService -> UserService
 IAuthService -> AuthService
 
-Todos utilizan ciclo de vida Scoped.
+Los repositorios y servicios son Scoped; SqlConnectionFactory y la
+configuración JWT son Singleton. La factory conserva la cadena de
+conexión y crea un SqlConnection nuevo cuando el repositorio lo solicita;
+cada operación abre y dispone su propia conexión.
 
 Flujo:
 AuthController->IAuthService->AuthService->IUserRepository->UserRepository
@@ -628,7 +658,7 @@ Permite que las clases dependan de interfaces en lugar de crear directamente sus
 Sustentación:
 "Registré las interfaces y sus implementaciones en el contenedor de Inyección de Dependencias de ASP.NET Core. Utilizo Scoped porque quiero que los servicios tengan un ciclo de vida asociado a cada petición HTTP."
 
-13. CHECKLIST BACKEND
+13. ESTADO Y CHECKLIST BACKEND
 ---------------------
 ESTRUCTURA
 [OK] Crear Domain.
@@ -648,7 +678,8 @@ INFRASTRUCTURE
 [OK] Configurar conexión SQL Server.
 [OK] Crear UserRepository.
 [OK] GetAllAsync.
-[OK] GetByIdAsync.
+[OK] GetByIdAsync (usa AddWithValue para @id; los demás parámetros
+especifican el tipo).
 [OK] CreateAsync.
 [OK] UpdateAsync.
 [OK] DeleteAsync como borrado lógico.
@@ -659,29 +690,25 @@ APPLICATION
 [OK] UserResponseDto.
 [OK] CreateUserDto.
 [OK] UpdateUserDto.
-[OK] LoginDto
+[OK] LoginDto con validación de email y contraseña requerida.
 [OK] IAuthService.
 [OK] AuthService + JWT
-[ ] IUserService.
+[OK] IUserService.
 [OK] UserService.
-[OK] Validaciones.
-[OK] Mapeo Entity -> DTO.
-[OK] Manejo de errores de aplicación.
+[PARCIAL] Validación: LoginDto y email duplicado al crear; faltan
+reglas en CreateUserDto y UpdateUserDto.
+[OK] Mapeo manual Entity -> DTO (falta copiar updatedAt).
+[PARCIAL] Manejo básico de errores HTTP; no hay traducción completa de
+errores SQL ni manejo global.
 
 API
 [OK] ASP.NET Core Web API.
 [OK] OpenAPI/Swagger.
 [OK] Swagger UI.
-[ ] UsersController.
-[ ] GET /api/users.
-[ ] GET /api/users/{id}.
-[ ] POST /api/users.
-[ ] PUT /api/users/{id}.
-[ ] DELETE /api/users/{id}.
-[ ] AuthController.
-[ ] Login.
-[ ] JWT.
-[ ] SESSION_CONTEXT.
+[OK] UsersController y sus cinco endpoints.
+[OK] AuthController y POST /api/auth/login.
+[OK] Firma y validación JWT; UsersController requiere [Authorize].
+[ ] SESSION_CONTEXT desde C#.
 
 PRUEBAS
 [ ] Probar CRUD desde Swagger.
@@ -689,13 +716,25 @@ PRUEBAS
 [ ] Probar autenticación.
 [ ] Probar auditoría desde C#.
 
-11. PRÓXIMO PASO
-----------------
-Crear IUserService y después UserService.
-El Controller NO llamará directamente al Repository.
-Controller -> IUserService -> IUserRepository -> UserRepository -> SQL
+BUILD
+[OK] `dotnet build Backend/PruebaOben.Api/PruebaOben.Api.csproj`
+compila sin errores.
 
-12. SUSTENTACIÓN
+14. PRÓXIMOS PASOS
+----------------
+1. Probar en Swagger: iniciar sesión, copiar el JWT y usarlo como
+   credencial Bearer al llamar cada ruta protegida.
+2. Probar CRUD y confirmar los registros creados por los triggers en
+   auditLogs.
+3. Integrar `SESSION_CONTEXT('UserId')` en la misma conexión SQL que
+   ejecuta cada operación, y verificar `cambioRealizado`.
+4. Completar validación de CreateUserDto/UpdateUserDto y decidir cómo
+   traducir violaciones UNIQUE a 409 Conflict.
+5. Asignar `updatedAt` en `MapToResponse` si debe mostrarse al cliente.
+6. Considerar retirar `/weatherforecast` cuando ya no se necesite el
+   endpoint de ejemplo.
+
+15. SUSTENTACIÓN
 ----------------
 ¿Por qué separar Domain, Application, Infrastructure y API?
 "Separé responsabilidades para evitar que toda la lógica quede en una
@@ -720,11 +759,23 @@ abstracción y mantiene separadas las responsabilidades."
 ¿Por qué AuthService y UserService son servicios diferentes?
 "Porque autenticación y gestión de usuarios son responsabilidades
 diferentes. AuthService maneja login, contraseña, claims y JWT.
-UserService manejará las operaciones de administración de usuarios."
+UserService maneja las operaciones de administración de usuarios."
 
 ¿Por qué DTOs?
 "Para controlar qué datos entran y salen de los casos de uso y evitar
 exponer directamente las entidades, especialmente PasswordHash."
+
+¿Por qué SQL directo y no Entity Framework u otro ORM?
+"El alcance pidió SQL y C#. Con Microsoft.Data.SqlClient escribo las
+consultas que necesito, uso parámetros y controlo explícitamente la
+conexión, los comandos y la lectura de resultados. No agregué Entity
+Framework, un ORM ni una capa de generación automática porque no eran
+necesarios para este CRUD."
+
+¿Por qué no se usa AutoMapper?
+"El mapeo entre User y UserResponseDto es pequeño, así que se hace con
+asignaciones C# explícitas en UserService. Evito una dependencia extra
+y puedo ver con claridad qué propiedades se exponen."
 
 ¿Por qué no devolver User directamente?
 "Porque la entidad contiene información interna que no necesariamente
