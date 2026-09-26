@@ -34,7 +34,9 @@ builder.Services.AddSingleton(new SqlConnectionFactory(connectionString));
 // La aplicación trabajará con IUserRepository,
 // sin depender directamente de UserRepository.
 builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 
 // ============================================================

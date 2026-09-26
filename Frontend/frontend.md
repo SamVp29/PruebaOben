@@ -111,6 +111,11 @@ Web y MAUI utilizarán HTTP/JSON para comunicarse con PruebaOben.Api.
 
 No se conectarán directamente a SQL Server.
 
+El Backend ya expone `GET /api/audit?page=1&pageSize=50`, protegido por
+JWT. La API devuelve los IDs del usuario afectado y del actor junto con
+los valores auditados; no incluye nombres históricos. La integración de
+esta ruta con la pantalla de auditoría sigue pendiente en el Frontend.
+
 Flujo:
 Frontend
    |
@@ -167,6 +172,7 @@ API
 [ ] Consumir POST users.
 [ ] Consumir PUT users.
 [ ] Consumir DELETE lógico.
+[ ] Consumir GET /api/audit con paginación.
 [ ] Manejar errores HTTP.
 [ ] Manejar token/JWT.
 

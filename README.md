@@ -175,6 +175,7 @@ POST   /api/users
 PUT    /api/users/{id}
 DELETE /api/users/{id}
 POST   /api/auth/login
+GET    /api/audit?page=1&pageSize=50
 
 Un endpoint solo se considera implementado cuando se haya creado y
 probado.
@@ -269,8 +270,10 @@ utilizados en esta etapa.
 [OK] Referencias entre proyectos configuradas.
 [OK] Acceso Backend -> SQL Server preparado.
 [OK] Swagger funcionando.
-[EN PROCESO] Implementación de casos de uso Backend.
-[ ] Autenticación.
+[OK] API de gestión de usuarios, autenticación JWT y consulta paginada
+de auditoría implementadas.
+[EN PROCESO] Pruebas integradas y asociación del actor de auditoría
+mediante SESSION_CONTEXT.
 [ ] Frontend funcional.
 [ ] Integración Web/MAUI con API.
 [ ] APK Android.

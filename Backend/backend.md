@@ -288,6 +288,9 @@ Actualiza un usuario.
 DELETE /api/users/{id}
 Realiza la eliminación lógica de un usuario.
 
+GET /api/audit?page=1&pageSize=50
+Obtiene una página del historial de auditoría (ver AuditController).
+
 Flujo: HTTP Request-> UsersController-> IUserService-> UserService-> IUserRepository-> UserRepository-> SQL Server
 
 El Controller no contiene consultas SQL ni lógica de acceso a datos.
@@ -331,6 +334,35 @@ contra rutas protegidas deben confirmarse manualmente en Swagger.
 Program.cs también conserva `/weatherforecast`, el endpoint de ejemplo
 del template de ASP.NET Core. No forma parte de los casos de uso de
 PruebaOben.
+
+5.7 AuditController
+-------------------
+Archivo: Api/Controllers/AuditController.cs
+Endpoint: GET /api/audit
+Requiere JWT válido. Cualquier usuario autenticado puede consultarlo,
+igual que las rutas actuales de usuarios.
+
+Parámetros opcionales:
+- page: empieza en 1; valor por defecto 1.
+- pageSize: valor por defecto 50; rango permitido de 1 a 100.
+
+La respuesta incluye page, pageSize, totalCount e items. Los registros
+se ordenan por cambioAt descendente y, como desempate, id descendente.
+Cada item devuelve las columnas de auditLogs, incluidos userId (usuario
+afectado) y cambioRealizado (actor que hizo el cambio). Son IDs porque
+la tabla no guarda copias históricas de los nombres.
+
+Parámetros fuera de rango producen 400 Bad Request; sin un JWT válido,
+ASP.NET Core devuelve 401 Unauthorized.
+
+Flujo:
+AuditController -> IAuditLogService -> AuditLogService
+-> IAuditLogRepository -> AuditLogRepository
+-> SqlConnection / SqlCommand -> SQL Server
+
+La lectura usa SQL parametrizado con Microsoft.Data.SqlClient. No se
+usa ORM. La paginación limita el tamaño de respuesta y el repositorio
+obtiene el total y la página en dos consultas SQL.
 
 6. APPLICATION
 --------------
@@ -576,6 +608,8 @@ Los triggers pueden escribir en auditLogs, pero el backend todavía no
 establece `SESSION_CONTEXT('UserId')` en la conexión antes de las
 operaciones. Por tanto, `cambioRealizado` no queda asociado al usuario
 autenticado desde este backend hasta que se implemente esa integración.
+El endpoint de consulta sí está implementado; los registros existentes
+con `cambioRealizado` NULL seguirán mostrándose con ese valor.
 
 8. CQRS
 -------
@@ -592,6 +626,8 @@ de lectura y escritura agregaría complejidad sin una necesidad clara.
 - Implementado: JWT firmado con HMAC-SHA256, con expiración de una hora.
 - Implementado: validación de firma y expiración del JWT en API.
 - Implementado: UsersController requiere autenticación JWT.
+- Implementado: GET /api/audit requiere JWT; cualquier usuario
+  autenticado puede consultar los valores auditados.
 - Implementado: LoginDto valida email requerido/formato y contraseña
   requerida mediante DataAnnotations.
 - Implementado: borrado lógico mediante active y deletedAt.
@@ -707,6 +743,7 @@ API
 [OK] Swagger UI.
 [OK] UsersController y sus cinco endpoints.
 [OK] AuthController y POST /api/auth/login.
+[OK] AuditController y GET /api/audit con paginación.
 [OK] Firma y validación JWT; UsersController requiere [Authorize].
 [ ] SESSION_CONTEXT desde C#.
 
@@ -719,6 +756,10 @@ PRUEBAS
 BUILD
 [OK] `dotnet build Backend/PruebaOben.Api/PruebaOben.Api.csproj`
 compila sin errores.
+[OK] Smoke HTTP local: Swagger publica /api/audit; sin JWT devuelve 401;
+con un JWT de prueba, page=0 y pageSize=101 devuelven 400.
+[OK] Consulta autenticada contra SQL Server configurado: page=1 y
+pageSize=2 devolvieron 200, totalCount=12 e items=2.
 
 14. PRÓXIMOS PASOS
 ----------------

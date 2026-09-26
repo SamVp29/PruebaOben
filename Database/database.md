@@ -233,14 +233,16 @@ lógicamente."
 [OK] Probar borrado lógico.
 [OK] Probar restauración.
 [OK] Comprobar DELETE físico con FK.
-[ ] Integrar SESSION_CONTEXT desde C#.
-[ ] Probar auditoría desde Backend.
+[ ] Integrar SESSION_CONTEXT desde C# para identificar al actor.
+[PARCIAL] La API lee auditLogs mediante GET /api/audit; falta verificar
+INSERT/UPDATE/DELETE originados desde Backend y el actor en
+cambioRealizado.
 [ ] Definir comportamiento definitivo de DELETE físico.
 [ ] Limpiar datos de prueba antes de demostración final.
 
 15. PRÓXIMOS PASOS
 ------------------
 - Integrar SESSION_CONTEXT con Backend.
-- Implementar autenticación.
-- Probar auditoría desde API.
+- Probar INSERT/UPDATE/DELETE iniciados por la API y verificar
+  cambioRealizado.
 - Validar flujo completo usuario + auditoría.
