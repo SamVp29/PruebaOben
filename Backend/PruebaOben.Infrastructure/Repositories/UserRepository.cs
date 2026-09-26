@@ -128,6 +128,59 @@ public class UserRepository : IUserRepository
                 : reader.GetDateTime(reader.GetOrdinal("deletedAt"))
         };
     }
+
+    public async Task<User?> GetByEmailAsync(string email)
+    {
+        using var connection = _connectionFactory.CreateConnection();
+
+        await connection.OpenAsync();
+
+        const string sql = """
+        SELECT
+            id,
+            username,
+            fullname,
+            email,
+            passwordHash,
+            rol,
+            active,
+            createdAt,
+            UpdatedAt,
+            deletedAt
+        FROM users
+        WHERE email = @email
+          AND deletedAt IS NULL;
+        """;
+
+        using var command = new SqlCommand(sql, connection);
+
+        command.Parameters.Add("@email", SqlDbType.NVarChar, 150).Value = email;
+
+        using var reader = await command.ExecuteReaderAsync();
+
+        if (!await reader.ReadAsync())
+        {
+            return null;
+        }
+
+        return new User
+        {
+            id = reader.GetInt32(reader.GetOrdinal("id")),
+            username = reader.GetString(reader.GetOrdinal("username")),
+            fullname = reader.GetString(reader.GetOrdinal("fullname")),
+            email = reader.GetString(reader.GetOrdinal("email")),
+            passwordHash = reader.GetString(reader.GetOrdinal("passwordHash")),
+            rol = reader.GetString(reader.GetOrdinal("rol")),
+            active = reader.GetBoolean(reader.GetOrdinal("active")),
+            createdAt = reader.GetDateTime(reader.GetOrdinal("createdAt")),
+            updatedAt = reader.IsDBNull(reader.GetOrdinal("UpdatedAt"))
+                ? null
+                : reader.GetDateTime(reader.GetOrdinal("UpdatedAt")),
+            deletedAt = reader.IsDBNull(reader.GetOrdinal("deletedAt"))
+                ? null
+                : reader.GetDateTime(reader.GetOrdinal("deletedAt"))
+        };
+    }
     public async Task<User> CreateAsync(User user)
     {
         using var connection = _connectionFactory.CreateConnection();
