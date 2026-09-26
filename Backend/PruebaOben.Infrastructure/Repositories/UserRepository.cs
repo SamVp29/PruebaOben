@@ -186,6 +186,20 @@ public class UserRepository : IUserRepository
         using var connection = _connectionFactory.CreateConnection();
 
         const string sql = """
+        DECLARE @Inserted TABLE
+        (
+            id INT,
+            username NVARCHAR(50),
+            fullname NVARCHAR(150),
+            email NVARCHAR(150),
+            passwordHash NVARCHAR(255),
+            rol NVARCHAR(50),
+            active BIT,
+            createdAt DATETIME2,
+            UpdatedAt DATETIME2 NULL,
+            deletedAt DATETIME2 NULL
+        );
+
         INSERT INTO dbo.users
         (
             username,
@@ -206,6 +220,7 @@ public class UserRepository : IUserRepository
             INSERTED.createdAt,
             INSERTED.UpdatedAt,
             INSERTED.deletedAt
+        INTO @Inserted
         VALUES
         (
             @username,
@@ -215,6 +230,8 @@ public class UserRepository : IUserRepository
             @rol,
             @active
         );
+
+        SELECT * FROM @Inserted;
         """;
 
         using var command = new SqlCommand(sql, connection);
