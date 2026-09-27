@@ -349,3 +349,106 @@ trigger en el evento DELETE. El API toma el ID del claim sub del JWT, lo
 establece en SESSION_CONTEXT en la misma conexión de escritura y el trigger
 lo guarda en cambioRealizado. Los eventos antiguos sin actor continúan como
 'No informado'."
+
+11. CÓDIGO PARA EXPLICAR EN LA SUSTENTACIÓN
+-------------------------------------------
+Ejemplo principal: la página de usuarios consume la API sin conectarse
+directamente a SQL Server. Los fragmentos son extractos seleccionados
+del código real; consulta las rutas indicadas para ver los componentes
+y métodos completos.
+
+11.1 La página presenta y filtra los datos recibidos
+----------------------------------------------------
+Archivo: PruebaOben.Shared/Pages/Users.razor
+
+```razor
+<MudTable Items="FilteredUsers" Dense="true" Hover="true">
+    <HeaderContent>
+        <MudTh>Usuario</MudTh>
+        <MudTh>Correo</MudTh>
+        <MudTh>Rol</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Usuario">@context.username</MudTd>
+        <MudTd DataLabel="Correo">@context.email</MudTd>
+        <MudTd DataLabel="Rol">@context.rol</MudTd>
+    </RowTemplate>
+</MudTable>
+```
+
+```csharp
+private IEnumerable<UserDto> FilteredUsers =>
+    string.IsNullOrWhiteSpace(_search)
+        ? _users
+        : _users.Where(user =>
+            user.username.Contains(_search, StringComparison.OrdinalIgnoreCase)
+            || user.fullname.Contains(_search, StringComparison.OrdinalIgnoreCase)
+            || user.email.Contains(_search, StringComparison.OrdinalIgnoreCase));
+```
+
+`MudTable` dibuja encabezados y filas a partir de la colección. El filtro
+busca localmente en los usuarios ya cargados y no ejecuta una consulta SQL
+ni vuelve a llamar a la API por cada tecla.
+
+11.2 El cliente comparte la llamada HTTP protegida
+--------------------------------------------------
+Archivo: PruebaOben.Shared/Services/ApiClient.cs
+
+```csharp
+private async Task<HttpResponseMessage> SendRequestAsync(
+    HttpMethod method,
+    string uri,
+    object? body)
+{
+    var token = await tokenStore.GetAsync();
+    if (string.IsNullOrWhiteSpace(token))
+    {
+        throw new ApiException(
+            "La sesión expiró. Inicia sesión nuevamente.",
+            HttpStatusCode.Unauthorized);
+    }
+
+    using var request = new HttpRequestMessage(method, uri);
+    request.Headers.Authorization =
+        new AuthenticationHeaderValue("Bearer", token);
+    if (body is not null)
+    {
+        request.Content = JsonContent.Create(body, options: JsonOptions);
+    }
+
+    return await httpClient.SendAsync(request);
+}
+```
+
+La página llama a `ApiClient`; el cliente obtiene el token del almacén de
+la plataforma, lo envía en la cabecera `Authorization: Bearer` y serializa
+el cuerpo como JSON cuando existe. El host Web o MAUI configura la dirección
+base y el almacén del token; las páginas compartidas no conocen esas
+diferencias.
+La API, no la interfaz, valida el token y autoriza la operación.
+
+11.3 Carga y manejo de errores en la página
+-------------------------------------------
+En `Users.razor`, `LoadAsync` consulta el estado de autenticación para
+decidir si solicita eliminados lógicos como Admin y llama a
+`Api.GetUsersAsync`. Captura `ApiException` para presentar el error que
+responde la API y `HttpRequestException` para mostrar que no hubo
+conexión. El bloque `finally` retira el indicador de carga tanto si la
+petición funciona como si falla.
+
+Cómo contarlo:
+"La página Users muestra los DTO que recibe del ApiClient. El cliente
+HTTP adjunta el JWT y manda las peticiones a la base configurada por el
+host. La UI puede filtrar los datos cargados, pero no accede a SQL: solo
+el Backend lo hace."
+
+Preguntas que podrían hacer:
+- ¿Por qué `ApiClient` está en Shared? Web y MAUI reutilizan los mismos
+  endpoints y serialización; cada host aporta su configuración y
+  almacenamiento del token.
+- ¿Por qué se usa `DataLabel`? Da contexto a las celdas cuando la tabla
+  se adapta a una presentación estrecha.
+- ¿El filtro busca en toda la base? No; busca en la lista que la página
+  ya cargó. La API sigue siendo responsable de la consulta y autorización.
+- ¿El token guardado en la interfaz reemplaza la seguridad del API? No;
+  la protección del recurso se aplica en el Backend.

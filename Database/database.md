@@ -250,3 +250,106 @@ INSERT/UPDATE/DELETE de API con el actor en cambioRealizado.
   migración Database/Migrations/20260926_UserPhysicalDeleteAudit.sql.
 - La pantalla de auditoría con filtro por acción también está verificada
   contra la base local.
+
+16. CÓDIGO PARA EXPLICAR EN LA SUSTENTACIÓN
+-------------------------------------------
+Ejemplo principal: cómo SQL Server registra los cambios de un usuario.
+Los siguientes son fragmentos seleccionados; para ver las definiciones
+completas, revisa los archivos indicados.
+
+16.1 Tabla y restricciones
+--------------------------
+Archivo: PruebaOben.Database/Tables/user.sql
+
+```sql
+[id] INT IDENTITY(1,1) NOT NULL,
+[username] NVARCHAR(50) NOT NULL,
+[email] NVARCHAR(150) NOT NULL,
+[active] BIT NOT NULL
+    CONSTRAINT [DF_Users_Active] DEFAULT 1,
+[deletedAt] DATETIME2 NULL,
+CONSTRAINT [PK_Users] PRIMARY KEY ([id]),
+CONSTRAINT [UQ_Users_Username] UNIQUE ([username]),
+CONSTRAINT [UQ_Users_Email] UNIQUE ([email])
+```
+
+`IDENTITY` genera el ID; `PRIMARY KEY` identifica cada fila; `UNIQUE`
+impide usernames y correos duplicados. `active` y `deletedAt` expresan
+dos estados distintos: una cuenta puede estar inactiva sin haber sido
+eliminada lógicamente.
+
+16.2 Trigger de actualización
+-----------------------------
+Archivo: PruebaOben.Database/Triggers/TR_Audit_Users_Update.sql
+
+```sql
+FROM inserted AS i
+INNER JOIN deleted AS d
+    ON d.[id] = i.[id]
+CROSS APPLY
+(
+    VALUES
+        (N'fullname',
+         CONVERT(NVARCHAR(MAX), d.[fullname]),
+         CONVERT(NVARCHAR(MAX), i.[fullname])),
+        (N'active',
+         CONVERT(NVARCHAR(MAX), d.[active]),
+         CONVERT(NVARCHAR(MAX), i.[active]))
+) AS cambios ([nombreCampo], [valorAnterior], [valorNuevo])
+WHERE ISNULL(cambios.[valorAnterior], N'')
+   <> ISNULL(cambios.[valorNuevo], N'');
+```
+
+En un trigger `UPDATE`, `deleted` contiene los valores previos e
+`inserted` los nuevos. El `CROSS APPLY` convierte cada campo auditado en
+una fila comparable; el `WHERE` evita guardar campos que no cambiaron.
+El trigger real incluye username, fullname, email, rol, active y
+deletedAt. También clasifica el paso de `deletedAt` nulo a fecha como
+acción `DELETE`, que en este proyecto significa borrado lógico.
+
+Los triggers trabajan con conjuntos de filas: `inserted` y `deleted`
+pueden contener más de una fila. Por eso la consulta relaciona ambas
+tablas por ID y no supone que una operación afecte solo un usuario.
+
+16.3 Identidad del actor
+------------------------
+El repositorio C# establece el actor antes del DML:
+
+```sql
+EXEC sys.sp_set_session_context
+    @key = N'UserId',
+    @value = @actorId;
+```
+
+El trigger lee ese valor y lo guarda como `cambioRealizado`:
+
+```sql
+TRY_CONVERT(INT, SESSION_CONTEXT(N'UserId'))
+```
+
+`SESSION_CONTEXT` pertenece a la conexión actual. Por eso el código
+ejecuta la asignación y la escritura en el mismo comando/conexión. En
+una eliminación física, el trigger usa la tabla lógica `deleted` para
+conservar ID, username y nombre completo del usuario eliminado; no
+incluye correo ni passwordHash.
+
+Cómo contarlo:
+"La estructura y las restricciones están declaradas en el Database
+Project. Cuando la API escribe un cambio con SQL parametrizado, primero
+establece el ID del actor en la sesión SQL. El trigger compara los
+valores anteriores y nuevos y agrega a auditLogs solo los campos que
+cambiaron. Así la auditoría se genera en SQL Server y conserva el actor
+sin guardar el hash de la contraseña."
+
+Preguntas que podrían hacer:
+- ¿Qué representan `inserted` y `deleted`? Tablas lógicas que SQL Server
+  expone al trigger con las filas nuevas y anteriores, respectivamente.
+- ¿El trigger solo funciona con la API? No; se ejecuta ante cambios de
+  la tabla sin importar el punto que ejecutó el DML, aunque el actor
+  requiere que la conexión haya establecido `SESSION_CONTEXT`.
+- ¿Por qué no guardar el passwordHash? No es necesario para explicar
+  cambios y exponerlo aumentaría el riesgo de revelar información de
+  credenciales.
+- ¿Por qué no borrar auditoría junto con el usuario? La auditoría debe
+  conservar la evidencia histórica; la FK usa `ON DELETE SET NULL` para
+  el usuario relacionado y la fila auditada conserva el ID histórico.

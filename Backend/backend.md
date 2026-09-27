@@ -388,6 +388,125 @@ AuditController -> IAuditLogService -> AuditLogService
 -> IAuditLogRepository -> AuditLogRepository
 -> SqlConnection / SqlCommand -> SQL Server
 
+6. CÓDIGO PARA EXPLICAR EN LA SUSTENTACIÓN
+------------------------------------------
+Ejemplo principal: crear un usuario desde HTTP hasta SQL Server. Los
+fragmentos contienen extractos y versiones resumidas del código real;
+las rutas indican el archivo completo que conviene abrir para revisar
+el método entero.
+
+6.1 Entrada HTTP y respuesta
+----------------------------
+Archivo: PruebaOben.Api/Controllers/UsersController.cs
+
+```csharp
+[HttpPost]
+public async Task<ActionResult<UserResponseDto>> Create(
+    CreateUserDto dto)
+{
+    if (!TryGetActorId(out var actorId))
+    {
+        return Unauthorized();
+    }
+
+    var user = await _userService.CreateAsync(dto, actorId);
+
+    return CreatedAtAction(
+        nameof(GetById),
+        new { id = user.id },
+        user
+    );
+}
+```
+
+Qué ocurre:
+- `[HttpPost]` conecta el método con `POST /api/users`.
+- ASP.NET Core construye `CreateUserDto` con el JSON recibido.
+- El ID del actor se toma de los claims del JWT; sin un ID válido no se
+  continúa.
+- El Controller delega el caso de uso al servicio y devuelve HTTP 201
+  con la ruta para consultar el usuario creado.
+- El Controller no contiene SQL.
+
+6.2 Regla de aplicación y protección de datos
+---------------------------------------------
+Archivo: PruebaOben.Application/Services/UserService.cs
+
+```csharp
+var existingUser = await _repository.GetByEmailAsync(dto.email);
+if (existingUser is not null)
+{
+    throw new InvalidOperationException(
+        "Ya existe un usuario registrado con ese correo.");
+}
+
+var user = new User
+{
+    username = dto.username,
+    fullname = dto.fullname,
+    email = dto.email,
+    rol = dto.rol,
+    active = true,
+    passwordHash = BCrypt.Net.BCrypt.HashPassword(dto.password)
+};
+
+var createdUser = await _repository.CreateAsync(user, actorId);
+return MapToResponse(createdUser);
+```
+
+El servicio aplica la regla de correo duplicado, crea la entidad y guarda
+un hash BCrypt en vez de la contraseña original. Después convierte la
+entidad en `UserResponseDto`. Ese mapeo no incluye `passwordHash`, por lo
+que la credencial no se envía al cliente.
+
+6.3 SQL directo y parámetros
+---------------------------
+Archivo: PruebaOben.Infrastructure/Repositories/UserRepository.cs
+El siguiente extracto resume el texto SQL y algunos parámetros; el
+método completo incluye `OUTPUT INSERTED`, lectura de la fila creada y
+los demás parámetros tipados.
+
+```csharp
+const string sql = """
+EXEC sys.sp_set_session_context @key = N'UserId', @value = @actorId;
+
+INSERT INTO dbo.users (username, fullname, email, passwordHash, rol, active)
+VALUES (@username, @fullname, @email, @passwordHash, @rol, @active);
+""";
+
+using var command = new SqlCommand(sql, connection);
+command.Parameters.Add("@actorId", SqlDbType.Int).Value = actorId;
+command.Parameters.Add("@username", SqlDbType.NVarChar, 50).Value = user.username;
+command.Parameters.Add("@email", SqlDbType.NVarChar, 150).Value = user.email;
+```
+
+El SQL es texto explícito ejecutado con `SqlCommand`; los valores se
+envían como parámetros tipados, no concatenados al SQL. El método real
+también usa `OUTPUT INSERTED` para leer el registro recién creado. Antes
+del `INSERT` establece el ID del actor en `SESSION_CONTEXT` para que el
+trigger pueda incorporarlo al registro de auditoría en esa misma
+conexión.
+
+6.4 Cómo contarlo de principio a fin
+------------------------------------
+"El Controller recibe el POST y obtiene el actor del JWT. UserService
+aplica las reglas del caso de uso, genera el hash de la contraseña y
+llama a IUserRepository. UserRepository ejecuta SQL parametrizado con
+SqlClient, recupera la fila creada y la auditoría queda a cargo del
+trigger de SQL Server. Finalmente, el servicio devuelve un DTO sin
+passwordHash y la API responde 201."
+
+Preguntas que podrían hacer:
+- ¿Por qué se separan Controller, Service y Repository? Para que HTTP,
+  reglas de aplicación y persistencia tengan responsabilidades
+  diferentes.
+- ¿Dónde está el ORM? No hay ORM: el repositorio escribe SQL y usa
+  `SqlConnection`, `SqlCommand` y `SqlDataReader` directamente.
+- ¿Por qué no devolver la entidad completa? El DTO limita los campos
+  expuestos y excluye `passwordHash`.
+- ¿Cómo sabe el trigger quién hizo la operación? El repositorio escribe
+  el actor en `SESSION_CONTEXT` justo antes del DML.
+
 La lectura usa SQL parametrizado con Microsoft.Data.SqlClient. No se
 usa ORM. La paginación limita el tamaño de respuesta y el repositorio
 obtiene el total y la página en dos consultas SQL. El filtro de acción se
