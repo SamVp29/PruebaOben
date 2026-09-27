@@ -1,9 +1,16 @@
 using PruebaOben.Web.Components;
+using PruebaOben.Shared.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-builder.Services.AddRazorComponents();
+var apiBaseAddress = builder.Configuration["Api:BaseAddress"]
+    ?? throw new InvalidOperationException(
+        "Configure Api:BaseAddress para que la aplicación web pueda llamar a la API.");
+
+builder.Services.AddRazorComponents()
+    .AddInteractiveServerComponents();
+builder.Services.AddPruebaObenShared(new Uri(apiBaseAddress));
+builder.Services.AddScoped<ITokenStore, WebTokenStore>();
 
 var app = builder.Build();
 
@@ -23,6 +30,7 @@ app.MapStaticAssets();
 
 app.MapRazorComponents<App>()
     .AddAdditionalAssemblies(
-        typeof(PruebaOben.Shared._Imports).Assembly);
+        typeof(PruebaOben.Shared._Imports).Assembly)
+    .AddInteractiveServerRenderMode();
 
 app.Run();

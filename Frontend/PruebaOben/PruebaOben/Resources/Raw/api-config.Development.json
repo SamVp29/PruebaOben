@@ -1,0 +1,6 @@
+{
+  "Api": {
+    "AndroidBaseAddress": "http://10.0.2.2:5083/",
+    "DesktopBaseAddress": "https://localhost:7250/"
+  }
+}

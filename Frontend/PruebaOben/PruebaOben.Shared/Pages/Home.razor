@@ -1,7 +1,118 @@
-﻿@page "/"
+@page "/"
+@inject ApiClient Api
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Resumen · PruebaOben</PageTitle>
 
-<h1>Hello, world!</h1>
+<div class="page-heading">
+    <div>
+        <MudText Typo="Typo.overline" Class="eyebrow">VISTA GENERAL</MudText>
+        <MudText Typo="Typo.h4" Class="page-title">Resumen</MudText>
+        <MudText Typo="Typo.body1" Class="muted-text">Estado actual de usuarios y actividad reciente.</MudText>
+    </div>
+    <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Refresh" OnClick="LoadAsync">
+        Actualizar
+    </MudButton>
+</div>
 
-Welcome to your new app.
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="loading-bar" />
+}
+else if (!string.IsNullOrWhiteSpace(_error))
+{
+    <MudAlert Severity="Severity.Error" Variant="Variant.Outlined" Class="mb-4">@_error</MudAlert>
+}
+
+<MudGrid Spacing="3" Class="summary-grid">
+    <MudItem xs="12" sm="6" lg="4">
+        <MudPaper Elevation="0" Class="metric-card">
+            <div class="metric-icon metric-icon-blue"><MudIcon Icon="@Icons.Material.Filled.People" /></div>
+            <div><MudText Typo="Typo.body2" Class="muted-text">Usuarios registrados</MudText><MudText Typo="Typo.h4" Class="metric-value">@_userCount</MudText></div>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="6" lg="4">
+        <MudPaper Elevation="0" Class="metric-card">
+            <div class="metric-icon metric-icon-green"><MudIcon Icon="@Icons.Material.Filled.Person" /></div>
+            <div><MudText Typo="Typo.body2" Class="muted-text">Usuarios activos</MudText><MudText Typo="Typo.h4" Class="metric-value">@_activeCount</MudText></div>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="6" lg="4">
+        <MudPaper Elevation="0" Class="metric-card">
+            <div class="metric-icon metric-icon-amber"><MudIcon Icon="@Icons.Material.Filled.History" /></div>
+            <div><MudText Typo="Typo.body2" Class="muted-text">Eventos auditados</MudText><MudText Typo="Typo.h4" Class="metric-value">@_auditCount</MudText></div>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+<MudPaper Elevation="0" Class="content-card recent-card">
+    <div class="section-heading">
+        <div>
+            <MudText Typo="Typo.h6">Actividad reciente</MudText>
+            <MudText Typo="Typo.body2" Class="muted-text">Últimos cambios registrados por la API.</MudText>
+        </div>
+        <MudButton Href="/audit" Variant="Variant.Text" Color="Color.Primary" EndIcon="@Icons.Material.Filled.ArrowForward">Ver auditoría</MudButton>
+    </div>
+    @if (_recentAudit.Count == 0)
+    {
+        <MudText Typo="Typo.body2" Class="empty-state">No hay eventos recientes para mostrar.</MudText>
+    }
+    else
+    {
+        <MudTable Items="_recentAudit" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="0" Class="data-table">
+            <HeaderContent>
+                <MudTh>Acción</MudTh><MudTh>Campo</MudTh><MudTh>Usuario</MudTh><MudTh>Fecha</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Acción"><MudChip T="string" Size="Size.Small" Color="@ActionColor(context.accion)" Variant="Variant.Outlined">@context.accion</MudChip></MudTd>
+                <MudTd DataLabel="Campo">@(context.nombreCampo ?? context.entidad)</MudTd>
+                <MudTd DataLabel="Usuario">@(context.userId?.ToString() ?? "—")</MudTd>
+                <MudTd DataLabel="Fecha">@context.cambioAt.ToLocalTime().ToString("g")</MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+</MudPaper>
+
+@code {
+    private bool _loading = true;
+    private string? _error;
+    private int _userCount;
+    private int _activeCount;
+    private long _auditCount;
+    private IReadOnlyList<AuditLogDto> _recentAudit = [];
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+        try
+        {
+            var users = await Api.GetUsersAsync();
+            var audit = await Api.GetAuditAsync(1, 5);
+            _userCount = users.Count;
+            _activeCount = users.Count(user => user.active);
+            _auditCount = audit.totalCount;
+            _recentAudit = audit.items;
+        }
+        catch (ApiException ex)
+        {
+            _error = ex.Message;
+        }
+        catch (HttpRequestException)
+        {
+            _error = "No se pudo conectar con la API. Comprueba que esté iniciada y que Api:BaseAddress sea accesible.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private static Color ActionColor(string action) => action switch
+    {
+        "INSERT" => Color.Success,
+        "DELETE" => Color.Error,
+        _ => Color.Info
+    };
+}

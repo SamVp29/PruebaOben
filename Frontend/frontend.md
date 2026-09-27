@@ -1,208 +1,284 @@
 PROYECTO PRUEBAOBEN - FRONTEND
 =============================
 
-Documento: 04-Frontend.txt
+Objetivo: construir una sola interfaz de usuario Razor con MudBlazor y
+reutilizarla en navegador y en la aplicación nativa .NET MAUI mediante
+Blazor Hybrid. Los hosts cambian; las páginas, componentes y estilos
+compartidos no se duplican.
 
-1. ESTRUCTURA
--------------
+1. ARQUITECTURA
+---------------
 Frontend/
 +-- PruebaOben/
-+-- PruebaOben.Shared/
-+-- PruebaOben.Web/
+|   +-- PruebaOben/          Host nativo MAUI + BlazorWebView.
+|   +-- PruebaOben.Shared/   Páginas, componentes, estilos y cliente API.
+|   +-- PruebaOben.Web/      Host ASP.NET Core Blazor Web interactivo.
 
-2. TECNOLOGÍAS
---------------
-- .NET MAUI.
-- Blazor Hybrid.
-- Blazor Web.
-- Razor Components.
-- MudBlazor.
+Flujo de la misma interfaz:
+Navegador -> PruebaOben.Web -> Razor Components interactivos
+Android/Windows -> PruebaOben -> BlazorWebView
+                                     |
+                                     v
+                           PruebaOben.Shared
+                                     |
+                                     | HTTP/JSON + JWT
+                                     v
+                            PruebaOben.Api
 
-3. PruebaOben
--------------
-Proyecto .NET MAUI.
+El Frontend nunca se conecta a SQL Server. Las páginas y los contratos
+HTTP comunes viven en PruebaOben.Shared. Cada host registra esa UI y
+provee únicamente sus servicios específicos de plataforma.
 
-Responsabilidad:
-Proporcionar la aplicación nativa.
+2. TECNOLOGÍAS Y DECISIONES
+---------------------------
+- .NET 10, Razor Components y C#.
+- MudBlazor 9.10.0 para controles, formularios, tablas, navegación,
+  iconos, indicadores y componentes de carga.
+- CSS propio compartido para la identidad visual y el comportamiento
+  adaptable a móvil.
+- HttpClient + System.Net.Http.Json para consumir la API REST.
+- Sin Entity Framework, ORM, AutoMapper ni conexiones SQL en el
+  Frontend.
+- Web usa Interactive Server. Android y MAUI Windows usan BlazorWebView.
+- En Web el servidor llama a la API; en MAUI el cliente nativo llama a
+  la API.
 
-Destinos previstos:
+Sustentación:
+"Mantengo las páginas en un solo proyecto Razor compartido. Web las
+presenta dentro del host ASP.NET Core y MAUI las presenta dentro de un
+BlazorWebView. Así comparto la interfaz y el cliente HTTP, pero cada
+host configura la URL de la API y el almacenamiento seguro que le
+corresponde."
+
+3. HOSTS
+--------
+3.1 PruebaOben.Shared
+---------------------
+Contiene:
+- Routes.razor y ProtectedRouteView.razor para resolver rutas y enviar
+  a login a quien no tiene una sesión válida en la UI.
+- Layout/MainLayout.razor con barra superior, navegación y cierre de
+  sesión.
+- Pages/Login.razor.
+- Pages/Home.razor, el dashboard.
+- Pages/Users.razor.
+- Pages/Audit.razor.
+- Services/ApiClient.cs, modelos HTTP, estado de autenticación y
+  almacenamiento de token web.
+- Services/AppTheme.cs y wwwroot/app.css para tema y estilos compartidos.
+
+3.2 PruebaOben.Web
+------------------
+Host ASP.NET Core que activa Interactive Server y añade las rutas del
+assembly Shared. La interactividad está configurada sin prerenderizar
+las páginas, para que el almacenamiento de sesión del navegador esté
+disponible al consultar el estado de autenticación.
+
+La UI usa sessionStorage para conservar el JWT durante la sesión actual
+del navegador. El HttpClient se ejecuta en el servidor Web y agrega el
+JWT al llamar a la API.
+
+3.3 PruebaOben (MAUI)
+---------------------
+Host nativo que carga el mismo componente Shared/Routes dentro de
+BlazorWebView. El JWT se almacena con SecureStorage de MAUI, no en SQL
+ni en archivos planos de la aplicación.
+
+Destinos configurados:
+- Android (API mínima 24).
 - Windows.
-- Android.
-- APK.
+- iOS y MacCatalyst están declarados en el proyecto, pero no se
+  compilaron ni probaron en este entorno Windows.
 
-MAUI utiliza Blazor mediante BlazorWebView para la experiencia híbrida.
+4. FUNCIONALIDADES
+------------------
+LOGIN
+- POST /api/auth/login con correo y contraseña.
+- Recibe el JWT y lo guarda en el almacenamiento propio del host.
+- El proveedor de autenticación lee los claims y la expiración para
+  controlar la navegación visual.
+- 401 se presenta como credenciales incorrectas o sesión vencida.
+- El servidor de API sigue siendo quien valida firma y expiración; la
+  protección de rutas del cliente no reemplaza la seguridad del API.
 
-4. PruebaOben.Shared
---------------------
-Contendrá componentes Razor reutilizables entre Web y MAUI.
+RESUMEN
+- Cuenta los usuarios visibles que entrega GET /api/users.
+- Cuenta los activos usando el campo active.
+- Muestra el total de eventos desde GET /api/audit y los cinco eventos
+  más recientes.
+- No hay endpoint de estadísticas: los indicadores se calculan con las
+  respuestas existentes.
 
-Objetivo:
-Evitar duplicación de componentes visuales.
+USUARIOS
+- GET /api/users y búsqueda local por nombre, username o email.
+- POST /api/users para crear con username, nombre, email, contraseña y
+  rol.
+- PUT /api/users/{id} para actualizar campos y estado activo.
+- DELETE /api/users/{id} para borrado lógico.
+- No hay acción de restaurar ni cambio de contraseña porque el Backend
+  aún no expone esas operaciones.
 
-Componentes previstos:
-- Login.
-- Dashboard.
-- Usuarios.
-- Auditoría.
+AUDITORÍA
+- GET /api/audit?page={page}&pageSize={pageSize}.
+- Paginación con 25, 50 o 100 filas.
+- Presenta acción, entidad/campo, usuario afectado, actor, valores y
+  fecha.
+- El actor/usuario se muestra como ID porque auditLogs no guarda una
+  copia histórica de sus nombres. Si cambioRealizado es NULL, se indica
+  "No informado"; la integración Backend de SESSION_CONTEXT está
+  pendiente.
+- La ruta permite cualquier usuario autenticado, según la decisión
+  tomada para el alcance actual.
 
-5. PruebaOben.Web
------------------
-Proyecto encargado de la aplicación Web.
+5. DISEÑO Y ESTILOS
+-------------------
+Tema claro centralizado en Services/AppTheme.cs:
+- Primario azul profundo: #173B57.
+- Secundario turquesa: #1D8A8A.
+- Fondo gris claro: #F3F6F8.
+- Superficies blancas y bordes suaves.
+- Verde, ámbar y rojo para estados y acciones.
 
-Se ejecuta mediante ASP.NET Core y se accede desde navegador mediante
-localhost.
+Los estilos globales se encuentran en wwwroot/app.css dentro del
+proyecto Shared. Definen tipografía del sistema, tarjetas, espaciado,
+tablas, estados vacíos, formularios y breakpoints para pantallas
+pequeñas. Los dos hosts cargan el mismo CSS y los recursos estáticos de
+MudBlazor.
 
-6. ESTADO ACTUAL
-----------------
-[OK] Crear proyecto PruebaOben.
-[OK] Crear proyecto PruebaOben.Shared.
-[OK] Crear proyecto PruebaOben.Web.
-[OK] Configurar HTTPS.
-[OK] Ejecutar aplicación Web correctamente.
-[OK] Comprobación inicial del proyecto MAUI.
+El layout usa navegación lateral en escritorio y navegación adaptable
+de MudBlazor en tamaños pequeños. Tablas MudTable cambian a presentación
+responsive para que sus filas se puedan leer en móvil.
 
-La implementación funcional del Frontend todavía no ha comenzado.
-
-7. MUD BLAZOR
-------------
-MudBlazor está previsto para:
-- Formularios.
-- Tablas.
-- Botones.
-- Diálogos.
-- Navegación.
-- Dashboard.
-
-Todavía no se marca como implementado hasta realizar la configuración.
-
-8. FUNCIONALIDADES PREVISTAS
-----------------------------
-LOGIN:
-- Usuario/contraseña.
-- Consumo del endpoint de login.
-- Manejo del token.
-- Protección de rutas.
-
-DASHBOARD:
-- Resumen de información.
-- Indicadores.
-- Navegación.
-
-GESTIÓN DE USUARIOS:
-- Listado.
-- Crear.
-- Editar.
-- Desactivar.
-- Restaurar cuando corresponda.
-
-AUDITORÍA:
-- Listado de cambios.
-- Usuario afectado.
-- Usuario que realizó el cambio.
-- Acción.
-- Campo.
-- Valor anterior.
-- Valor nuevo.
-- Fecha.
-
-9. CONSUMO DE API
------------------
-Web y MAUI utilizarán HTTP/JSON para comunicarse con PruebaOben.Api.
-
-No se conectarán directamente a SQL Server.
-
-El Backend ya expone `GET /api/audit?page=1&pageSize=50`, protegido por
-JWT. La API devuelve los IDs del usuario afectado y del actor junto con
-los valores auditados; no incluye nombres históricos. La integración de
-esta ruta con la pantalla de auditoría sigue pendiente en el Frontend.
-
-Flujo:
-Frontend
-   |
-   | HTTP / JSON
-   v
-API REST
-   |
-   v
-Application
-   |
-   v
-Infrastructure
-   |
-   v
-SQL Server
-
-10. ANDROID
------------
-Objetivo final:
-Generar una aplicación Android y un APK.
-
-Destinos de prueba:
-- Android Emulator.
-- Dispositivo Android.
-
-La generación final del APK se realizará después de completar la
-funcionalidad principal.
-
-11. CHECKLIST FRONTEND
-----------------------
-ESTRUCTURA
-[OK] Crear proyecto PruebaOben.
-[OK] Crear proyecto Shared.
-[OK] Crear proyecto Web.
-[OK] HTTPS.
-[OK] Ejecutar Web.
-[OK] Comprobar inicialmente MAUI.
-
-UI
-[ ] Instalar/configurar MudBlazor.
-[ ] Crear layout.
-[ ] Crear navegación.
-[ ] Crear Login.
-[ ] Crear Dashboard.
-[ ] Crear gestión de usuarios.
-[ ] Crear pantalla de auditoría.
-
-API
-[ ] Crear cliente HTTP.
-[ ] Configurar URL de API.
-[ ] Consumir Login.
-[ ] Consumir GET users.
-[ ] Consumir GET user por ID.
-[ ] Consumir POST users.
-[ ] Consumir PUT users.
-[ ] Consumir DELETE lógico.
-[ ] Consumir GET /api/audit con paginación.
-[ ] Manejar errores HTTP.
-[ ] Manejar token/JWT.
-
+6. CONFIGURACIÓN DE LA API
+--------------------------
 WEB
-[ ] Integrar componentes Shared.
-[ ] Probar flujo Web -> API.
+La dirección está en `Api:BaseAddress` de
+PruebaOben.Web/appsettings.json. Se puede sustituir por configuración
+de entorno:
 
-MAUI
-[ ] Integrar componentes Shared.
-[ ] Probar flujo MAUI -> API.
-[ ] Probar Android Emulator.
-[ ] Probar dispositivo Android.
-[ ] Generar APK.
+PowerShell:
+$env:Api__BaseAddress = "https://localhost:7250/"
 
-12. SUSTENTACIÓN
+MAUI DEBUG
+La configuración se lee desde Resources/Raw/api-config.Development.json:
+- Android Emulator: `http://10.0.2.2:5083/`.
+- Windows: `https://localhost:7250/`.
+
+Para un dispositivo Android físico, `10.0.2.2` no sirve. Cambiar
+AndroidBaseAddress a la dirección LAN de la computadora, por ejemplo
+`http://192.168.1.20:5083/`, iniciar la API escuchando en esa interfaz y
+mantener el dispositivo y el equipo en la misma red. El manifiesto
+Android de Debug permite HTTP solo para facilitar desarrollo local.
+
+MAUI RELEASE / APK
+Resources/Raw/api-config.json se usa para Release. Reemplazar
+`https://api.example.com/` por el host HTTPS real antes de distribuir y
+volver a generar el APK. El manifiesto Release no permite HTTP sin
+cifrar. No se configuró un servidor de producción para este proyecto.
+
+7. COMPILAR Y EJECUTAR
+----------------------
+Restaurar y compilar Web:
+dotnet restore .\Frontend\PruebaOben\PruebaOben.Web\PruebaOben.Web.csproj
+dotnet build .\Frontend\PruebaOben\PruebaOben.Web\PruebaOben.Web.csproj
+
+Ejecutar API y Web desde dos terminales. La API también requiere que
+`Jwt__Key` esté configurada como variable de entorno.
+dotnet run --project .\Backend\PruebaOben.Api\PruebaOben.Api.csproj
+dotnet run --project .\Frontend\PruebaOben\PruebaOben.Web\PruebaOben.Web.csproj
+
+Compilar MAUI Windows:
+dotnet build .\Frontend\PruebaOben\PruebaOben\PruebaOben.csproj `
+  -f net10.0-windows10.0.19041.0
+
+Compilar MAUI Android Debug:
+dotnet build .\Frontend\PruebaOben\PruebaOben\PruebaOben.csproj `
+  -f net10.0-android -c Debug
+
+Generar APK Release:
+dotnet publish .\Frontend\PruebaOben\PruebaOben\PruebaOben.csproj `
+  -f net10.0-android -c Release -p:AndroidPackageFormat=apk
+
+Salida de APK generada:
+Frontend/PruebaOben/PruebaOben/bin/Release/net10.0-android/publish/
+com.companyname.pruebaoben-Signed.apk
+
+El APK generado permite comprobar empaquetado y compilación. Antes de
+distribución comercial se debe configurar un certificado de firma
+Release propio y una URL HTTPS real. Para instalar/probar en un
+dispositivo se requiere Android SDK Platform Tools (`adb`) y un
+emulador o teléfono Android.
+
+8. ESTADO Y VALIDACIÓN
+----------------------
+[OK] Una sola interfaz Razor en Shared, usada por Web y MAUI.
+[OK] MudBlazor y tema/estilos compartidos.
+[OK] Login, navegación, dashboard, usuarios y auditoría implementados.
+[OK] JWT enviado a las rutas de API desde cada host.
+[OK] Cliente HTTP común, con almacenamiento de token por plataforma.
+[OK] Compila Web sin advertencias ni errores.
+[OK] Compila MAUI Windows Debug sin advertencias ni errores.
+[OK] Compila MAUI Android Debug sin advertencias ni errores.
+[OK] Genera APK Android Release firmado para prueba.
+[OK] Smoke test del navegador con una API simulada: login, dashboard,
+     listado de usuarios y auditoría.
+[OK] API real probada aparte: GET /api/audit devolvió datos de SQL
+     Server con autenticación.
+[ ] No hay emulador ni adb disponibles en este entorno; no se pudo
+     instalar/ejecutar el APK ni probar un dispositivo físico.
+[ ] Falta probar el flujo completo de login/CRUD del Frontend contra la
+     API real con credenciales de demostración.
+[ ] Falta establecer SESSION_CONTEXT desde Backend para identificar al
+     actor de cambios.
+
+9. LIMITACIONES CONOCIDAS
+-------------------------
+- Las rutas se protegen en la experiencia cliente y el Backend exige
+  JWT. La validación de autorización real siempre corresponde a API.
+- El JWT Web se conserva en sessionStorage del navegador. Mantener la
+  aplicación protegida frente a XSS es importante porque JavaScript del
+  mismo origen podría acceder a ese almacenamiento.
+- La lista de auditoría contiene valores de campos, y el API permite
+  leerlos a cualquier usuario autenticado.
+- El Frontend no oculta funciones por rol porque el Backend actual no
+  implementa autorización diferenciada por rol.
+- El endpoint de usuarios no devuelve updatedAt correctamente todavía;
+  el resumen no depende de ese campo.
+- No existe restauración de borrado lógico ni cambio de contraseña en
+  los endpoints actuales.
+
+10. SUSTENTACIÓN
 ----------------
-¿Por qué Web y MAUI usan el mismo Backend?
-"Para evitar duplicar lógica de negocio y mantener las mismas reglas
-para todos los clientes. Son diferentes interfaces, pero consumen el
-mismo contrato HTTP."
+¿Cómo logré una sola interfaz para Web y aplicación móvil?
+"Implementé las páginas y el layout en PruebaOben.Shared. El host Web
+las ejecuta como Razor Components interactivos y MAUI las presenta con
+BlazorWebView. No mantengo una copia de las pantallas por plataforma."
 
-¿Por qué Shared?
-"Para reutilizar componentes Razor entre Web y MAUI y evitar duplicar
-la interfaz."
+¿Qué hace Blazor Hybrid?
+"Usa componentes Razor dentro de una vista web integrada en una
+aplicación nativa. La aplicación sigue siendo MAUI y puede usar
+capacidades nativas como SecureStorage."
 
-¿El Frontend se conecta directamente a SQL Server?
-"No. Consume la API REST. El acceso a SQL Server está encapsulado en
-Infrastructure del Backend."
+¿Qué aporta MudBlazor?
+"Proporciona controles de interfaz listos, como formularios, tablas,
+botones, navegación e iconos. Definí un tema MudBlazor y CSS propio
+compartido para mantener una identidad visual consistente sin
+reimplementar todos los controles."
 
-13. PRÓXIMO PASO
-----------------
-El Frontend funcional se comenzará después de completar la base del
-Backend necesaria para consumir la API.
+¿El Frontend se conecta a SQL Server?
+"No. Envía solicitudes HTTP/JSON a la API. La API es la única capa que
+accede a SQL Server."
+
+¿Cómo adapto el token a Web y MAUI?
+"El contrato ITokenStore tiene implementaciones distintas. Web usa
+sessionStorage y MAUI usa SecureStorage. El cliente HTTP compartido
+adjunta el JWT como Bearer en las llamadas protegidas."
+
+¿La protección de rutas del Frontend es suficiente?
+"No. Solo mejora la navegación. La API valida el JWT y protege los
+recursos; el cliente no es una frontera de seguridad."
+
+¿Cómo maneja la auditoría los nombres del actor?
+"El esquema guarda IDs, no nombres históricos. La interfaz presenta
+esos IDs. Para atribuir el actor falta que Backend establezca
+SESSION_CONTEXT en la misma conexión que modifica SQL."

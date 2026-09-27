@@ -1,0 +1,64 @@
+@implements IDisposable
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+@if (_checking)
+{
+    <MudContainer MaxWidth="MaxWidth.Small" Class="redirect-message">
+        <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+        <MudText Typo="Typo.body1">Comprobando sesión…</MudText>
+    </MudContainer>
+}
+else if (_authorized)
+{
+    <RouteView RouteData="RouteData" DefaultLayout="typeof(Layout.MainLayout)" />
+}
+else
+{
+    <RedirectToLogin />
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public RouteData RouteData { get; set; } = default!;
+
+    private bool _checking = true;
+    private bool _authorized;
+
+    protected override async Task OnInitializedAsync()
+    {
+        AuthenticationStateProvider.AuthenticationStateChanged += OnAuthenticationStateChanged;
+        await CheckAuthorizationAsync();
+    }
+
+    protected override Task OnParametersSetAsync() => CheckAuthorizationAsync();
+
+    private async Task CheckAuthorizationAsync()
+    {
+        _checking = true;
+        if (RouteData.PageType == typeof(Login))
+        {
+            _authorized = true;
+        }
+        else
+        {
+            var state = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            _authorized = state.User.Identity?.IsAuthenticated == true;
+        }
+
+        _checking = false;
+    }
+
+    private async void OnAuthenticationStateChanged(Task<AuthenticationState> stateTask)
+    {
+        var state = await stateTask;
+        await InvokeAsync(() =>
+        {
+            _authorized = RouteData.PageType == typeof(Login)
+                || state.User.Identity?.IsAuthenticated == true;
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose() =>
+        AuthenticationStateProvider.AuthenticationStateChanged -= OnAuthenticationStateChanged;
+}

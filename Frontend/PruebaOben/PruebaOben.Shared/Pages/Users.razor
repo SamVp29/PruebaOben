@@ -1,0 +1,307 @@
+@page "/users"
+@inject ApiClient Api
+@inject ISnackbar Snackbar
+
+<PageTitle>Usuarios · PruebaOben</PageTitle>
+
+<div class="page-heading">
+    <div>
+        <MudText Typo="Typo.overline" Class="eyebrow">ADMINISTRACIÓN</MudText>
+        <MudText Typo="Typo.h4" Class="page-title">Usuarios</MudText>
+        <MudText Typo="Typo.body1" Class="muted-text">Consulta y administra las cuentas registradas.</MudText>
+    </div>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PersonAdd"
+               OnClick="StartCreate" Disabled="_saving">
+        Nuevo usuario
+    </MudButton>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(_error))
+{
+    <MudAlert Severity="Severity.Error" Variant="Variant.Outlined" Class="mb-4">@_error</MudAlert>
+}
+
+@if (_formOpen)
+{
+    <MudPaper Elevation="0" Class="content-card user-form-card">
+        <div class="section-heading">
+            <div>
+                <MudText Typo="Typo.h6">@(_editingId is null ? "Crear usuario" : "Editar usuario")</MudText>
+                <MudText Typo="Typo.body2" Class="muted-text">Completa los datos de la cuenta.</MudText>
+            </div>
+            <MudIconButton Icon="@Icons.Material.Filled.Close" title="Cancelar" OnClick="CancelForm" />
+        </div>
+        <EditForm Model="_form" OnValidSubmit="SaveAsync">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+            <MudGrid Spacing="2">
+                <MudItem xs="12" sm="6">
+                    <MudTextField T="string" Label="Nombre de usuario" @bind-Value="_form.username"
+                                  For="@(() => _form.username)" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField T="string" Label="Nombre completo" @bind-Value="_form.fullname"
+                                  For="@(() => _form.fullname)" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField T="string" Label="Correo electrónico" @bind-Value="_form.email"
+                                  For="@(() => _form.email)" InputType="InputType.Email"
+                                  Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="string" Label="Rol" @bind-Value="_form.rol"
+                               Variant="Variant.Outlined" Margin="Margin.Dense">
+                        <MudSelectItem Value="@("User")">Usuario</MudSelectItem>
+                        <MudSelectItem Value="@("Admin")">Administrador</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                @if (_editingId is null)
+                {
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="Contraseña inicial" @bind-Value="_form.password"
+                                      For="@(() => _form.password)" InputType="InputType.Password"
+                                      Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      HelperText="Usa al menos 8 caracteres." />
+                    </MudItem>
+                }
+                else
+                {
+                    <MudItem xs="12">
+                        <MudSwitch T="bool" @bind-Value="_form.active" Color="Color.Success">
+                            Cuenta activa
+                        </MudSwitch>
+                    </MudItem>
+                }
+            </MudGrid>
+            <div class="form-actions">
+                <MudButton Variant="Variant.Text" OnClick="CancelForm" Disabled="_saving">Cancelar</MudButton>
+                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
+                           Disabled="_saving" StartIcon="@Icons.Material.Filled.Save">
+                    @(_saving ? "Guardando…" : "Guardar")
+                </MudButton>
+            </div>
+        </EditForm>
+    </MudPaper>
+}
+
+<MudPaper Elevation="0" Class="content-card">
+    <div class="section-heading table-toolbar">
+        <div>
+            <MudText Typo="Typo.h6">Directorio</MudText>
+            <MudText Typo="Typo.body2" Class="muted-text">@_users.Count usuarios visibles</MudText>
+        </div>
+        <MudTextField T="string" @bind-Value="_search" Placeholder="Buscar usuario…"
+                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                      Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true"
+                      Class="search-field" />
+    </div>
+
+    @if (_loading)
+    {
+        <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+    }
+    else if (_users.Count == 0)
+    {
+        <div class="empty-state">
+            <MudIcon Icon="@Icons.Material.Filled.PeopleOutline" Size="Size.Large" />
+            <MudText Typo="Typo.body1">No hay usuarios para mostrar.</MudText>
+        </div>
+    }
+    else
+    {
+        <MudTable Items="FilteredUsers" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm"
+                  Elevation="0" Class="data-table">
+            <HeaderContent>
+                <MudTh>Usuario</MudTh><MudTh>Correo</MudTh><MudTh>Rol</MudTh><MudTh>Estado</MudTh><MudTh>Creado</MudTh><MudTh></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Usuario">
+                    <div class="user-cell">
+                        <MudAvatar Size="Size.Small" Color="Color.Primary">@Initial(context.fullname)</MudAvatar>
+                        <div><MudText Typo="Typo.body2" Class="user-fullname">@context.fullname</MudText><MudText Typo="Typo.caption" Class="muted-text">@context.username</MudText></div>
+                    </div>
+                </MudTd>
+                <MudTd DataLabel="Correo">@context.email</MudTd>
+                <MudTd DataLabel="Rol"><MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@context.rol</MudChip></MudTd>
+                <MudTd DataLabel="Estado"><MudChip T="string" Size="Size.Small" Color="@(context.active ? Color.Success : Color.Default)" Variant="Variant.Outlined">@(context.active ? "Activo" : "Inactivo")</MudChip></MudTd>
+                <MudTd DataLabel="Creado">@context.createdAt.ToLocalTime().ToString("d")</MudTd>
+                <MudTd DataLabel="Acciones" Class="actions-cell">
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" title="Editar usuario" OnClick="@(() => StartEdit(context))" />
+                    @if (context.active)
+                    {
+                        <MudIconButton Icon="@Icons.Material.Filled.PersonOff" Color="Color.Error" title="Desactivar usuario" OnClick="@(() => DeactivateAsync(context))" />
+                    }
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+</MudPaper>
+
+@code {
+    private IReadOnlyList<UserDto> _users = [];
+    private readonly UserForm _form = new();
+    private string _search = string.Empty;
+    private string? _error;
+    private int? _editingId;
+    private bool _loading = true;
+    private bool _saving;
+    private bool _formOpen;
+
+    private IEnumerable<UserDto> FilteredUsers => string.IsNullOrWhiteSpace(_search)
+        ? _users
+        : _users.Where(user =>
+            user.username.Contains(_search, StringComparison.OrdinalIgnoreCase)
+            || user.fullname.Contains(_search, StringComparison.OrdinalIgnoreCase)
+            || user.email.Contains(_search, StringComparison.OrdinalIgnoreCase));
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+        try
+        {
+            _users = await Api.GetUsersAsync();
+        }
+        catch (ApiException ex)
+        {
+            _error = ex.Message;
+        }
+        catch (HttpRequestException)
+        {
+            _error = "No se pudo conectar con la API.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void StartCreate()
+    {
+        ResetForm();
+        _editingId = null;
+        _form.rol = "User";
+        _form.active = true;
+        _formOpen = true;
+    }
+
+    private void StartEdit(UserDto user)
+    {
+        ResetForm();
+        _editingId = user.id;
+        _form.username = user.username;
+        _form.fullname = user.fullname;
+        _form.email = user.email;
+        _form.rol = user.rol;
+        _form.active = user.active;
+        _formOpen = true;
+    }
+
+    private async Task SaveAsync()
+    {
+        _saving = true;
+        _error = null;
+        try
+        {
+            if (_editingId is int id)
+            {
+                await Api.UpdateUserAsync(id, new UpdateUserRequest
+                {
+                    username = _form.username,
+                    fullname = _form.fullname,
+                    email = _form.email,
+                    rol = _form.rol,
+                    active = _form.active
+                });
+                Snackbar.Add("Los cambios del usuario se guardaron.", Severity.Success);
+            }
+            else
+            {
+                await Api.CreateUserAsync(new CreateUserRequest
+                {
+                    username = _form.username,
+                    fullname = _form.fullname,
+                    email = _form.email,
+                    password = _form.password,
+                    rol = _form.rol
+                });
+                Snackbar.Add("El usuario se creó correctamente.", Severity.Success);
+            }
+
+            _formOpen = false;
+            await LoadAsync();
+        }
+        catch (ApiException ex)
+        {
+            _error = ex.Message;
+        }
+        catch (HttpRequestException)
+        {
+            _error = "No se pudo conectar con la API.";
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task DeactivateAsync(UserDto user)
+    {
+        _error = null;
+        try
+        {
+            await Api.DeleteUserAsync(user.id);
+            Snackbar.Add($"Se desactivó la cuenta de {user.fullname}.", Severity.Success);
+            await LoadAsync();
+        }
+        catch (ApiException ex)
+        {
+            _error = ex.Message;
+        }
+        catch (HttpRequestException)
+        {
+            _error = "No se pudo conectar con la API.";
+        }
+    }
+
+    private void CancelForm()
+    {
+        _formOpen = false;
+        _editingId = null;
+    }
+
+    private void ResetForm()
+    {
+        _form.username = string.Empty;
+        _form.fullname = string.Empty;
+        _form.email = string.Empty;
+        _form.password = string.Empty;
+        _form.rol = "User";
+        _form.active = true;
+    }
+
+    private static string Initial(string name) =>
+        string.IsNullOrWhiteSpace(name) ? "?" : name[..1].ToUpperInvariant();
+
+    private sealed class UserForm
+    {
+        [Required(ErrorMessage = "El nombre de usuario es obligatorio."), StringLength(50, ErrorMessage = "El nombre de usuario no puede superar 50 caracteres.")]
+        public string username { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "El nombre completo es obligatorio."), StringLength(150, ErrorMessage = "El nombre completo no puede superar 150 caracteres.")]
+        public string fullname { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "El correo electrónico es obligatorio."), EmailAddress(ErrorMessage = "Ingresa un correo electrónico válido."), StringLength(150, ErrorMessage = "El correo no puede superar 150 caracteres.")]
+        public string email { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "La contraseña es obligatoria."), MinLength(8, ErrorMessage = "La contraseña debe tener al menos 8 caracteres.")]
+        public string password { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "El rol es obligatorio."), StringLength(50, ErrorMessage = "El rol no puede superar 50 caracteres.")]
+        public string rol { get; set; } = "User";
+
+        public bool active { get; set; } = true;
+    }
+}

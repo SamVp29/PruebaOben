@@ -1,0 +1,105 @@
+@page "/login"
+@layout MainLayout
+@inject ApiClient Api
+@inject NavigationManager Navigation
+
+<PageTitle>Iniciar sesión · PruebaOben</PageTitle>
+
+<div class="login-shell">
+    <MudPaper Elevation="0" Class="login-card">
+        <div class="login-mark"><MudIcon Icon="@Icons.Material.Filled.Layers" Size="Size.Large" /></div>
+        <MudText Typo="Typo.overline" Class="eyebrow">ADMINISTRACIÓN</MudText>
+        <MudText Typo="Typo.h4" Class="page-title login-title">Bienvenido</MudText>
+        <MudText Typo="Typo.body2" Class="muted-text login-description">Inicia sesión para continuar a PruebaOben.</MudText>
+
+        @if (!string.IsNullOrWhiteSpace(_error))
+        {
+            <MudAlert Severity="Severity.Error" Variant="Variant.Outlined" Class="login-error">@_error</MudAlert>
+        }
+
+        <EditForm Model="_model" OnValidSubmit="SubmitAsync">
+            <DataAnnotationsValidator />
+            <MudTextField T="string" Label="Correo electrónico" @bind-Value="_model.email"
+                          For="@(() => _model.email)" InputType="InputType.Email"
+                          Variant="Variant.Outlined" Margin="Margin.Dense"
+                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Email"
+                          Class="form-field" />
+            <MudTextField T="string" Label="Contraseña" @bind-Value="_model.password"
+                          For="@(() => _model.password)" InputType="@(_showPassword ? InputType.Text : InputType.Password)"
+                          Variant="Variant.Outlined" Margin="Margin.Dense"
+                          Adornment="Adornment.End"
+                          AdornmentIcon="@(_showPassword ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                          OnAdornmentClick="@(() => _showPassword = !_showPassword)"
+                          Class="form-field" />
+            <ValidationSummary />
+            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
+                       FullWidth="true" Size="Size.Large" Disabled="_submitting" Class="primary-action">
+                @if (_submitting)
+                {
+                    <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
+                    <span>Ingresando…</span>
+                }
+                else
+                {
+                    <span>Iniciar sesión</span>
+                }
+            </MudButton>
+        </EditForm>
+        <MudText Typo="Typo.caption" Class="login-note">Acceso protegido por la API de PruebaOben.</MudText>
+    </MudPaper>
+</div>
+
+@code {
+    private readonly LoginRequest _model = new();
+    private bool _submitting;
+    private bool _showPassword;
+    private string? _error;
+
+    [SupplyParameterFromQuery(Name = "returnUrl")]
+    private string? ReturnUrl { get; set; }
+
+    private async Task SubmitAsync()
+    {
+        _submitting = true;
+        _error = null;
+        try
+        {
+            await Api.LoginAsync(_model);
+            Navigation.NavigateTo(GetSafeReturnUrl());
+        }
+        catch (ApiException ex)
+        {
+            _error = ex.StatusCode == System.Net.HttpStatusCode.Unauthorized
+                ? "Correo o contraseña incorrectos."
+                : ex.Message;
+        }
+        catch (HttpRequestException)
+        {
+            _error = "No se pudo conectar con la API. Inténtalo de nuevo cuando el servicio esté disponible.";
+        }
+        finally
+        {
+            _submitting = false;
+        }
+    }
+
+    private string GetSafeReturnUrl()
+    {
+        var candidate = ReturnUrl;
+        if (string.IsNullOrWhiteSpace(candidate)
+            || !candidate.StartsWith('/')
+            || candidate.StartsWith("//", StringComparison.Ordinal)
+            || candidate.Contains('\\')
+            || candidate.Any(char.IsControl))
+        {
+            return "/";
+        }
+
+        var baseUri = new Uri(Navigation.BaseUri);
+        return Uri.TryCreate(baseUri, candidate, out var destination)
+            && string.Equals(destination.Scheme, baseUri.Scheme, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(destination.Authority, baseUri.Authority, StringComparison.OrdinalIgnoreCase)
+                ? candidate
+                : "/";
+    }
+}

@@ -1,3 +1,90 @@
 ﻿@inherits LayoutComponentBase
+@inject ApiClient Api
+@inject NavigationManager Navigation
 
-@Body
+<MudThemeProvider Theme="@AppTheme.Current" IsDarkMode="false" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <MudAppBar Elevation="0" Color="Color.Surface" Dense="false">
+        <AuthorizeView>
+            <Authorized>
+                <MudIconButton Icon="@Icons.Material.Filled.Menu"
+                               Color="Color.Primary"
+                               Edge="Edge.Start"
+                               OnClick="ToggleDrawer"
+                               Class="menu-toggle" />
+            </Authorized>
+        </AuthorizeView>
+        <MudText Typo="Typo.h6" Class="brand-name">PruebaOben</MudText>
+        <MudSpacer />
+        <AuthorizeView>
+            <Authorized>
+                <MudHidden Breakpoint="Breakpoint.SmAndDown">
+                    <MudText Typo="Typo.body2" Class="user-greeting">
+                        Hola, @context.User.Identity?.Name
+                    </MudText>
+                </MudHidden>
+                <MudIconButton Icon="@Icons.Material.Filled.Logout"
+                               Color="Color.Default"
+                               title="Cerrar sesión"
+                               OnClick="LogoutAsync" />
+            </Authorized>
+        </AuthorizeView>
+    </MudAppBar>
+
+    <AuthorizeView>
+        <Authorized>
+            <MudDrawer @bind-Open="_drawerOpen"
+                       Variant="DrawerVariant.Responsive"
+                       Breakpoint="Breakpoint.Md"
+                       Elevation="1"
+                       Class="app-drawer">
+                <MudDrawerHeader>
+                    <div class="drawer-brand">
+                        <MudIcon Icon="@Icons.Material.Filled.Layers" Color="Color.Primary" Size="Size.Large" />
+                        <div>
+                            <MudText Typo="Typo.subtitle1" Class="brand-name">PruebaOben</MudText>
+                            <MudText Typo="Typo.caption" Class="muted-text">Panel de administración</MudText>
+                        </div>
+                    </div>
+                </MudDrawerHeader>
+                <MudNavMenu Class="navigation-menu">
+                    <MudText Typo="Typo.overline" Class="nav-section-label">GENERAL</MudText>
+                    <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.SpaceDashboard">
+                        Resumen
+                    </MudNavLink>
+                    <MudNavLink Href="/users" Icon="@Icons.Material.Filled.People">
+                        Usuarios
+                    </MudNavLink>
+                    <MudNavLink Href="/audit" Icon="@Icons.Material.Filled.History">
+                        Auditoría
+                    </MudNavLink>
+                </MudNavMenu>
+                <div class="drawer-footer">
+                    <MudText Typo="Typo.caption">PruebaOben · Administración</MudText>
+                </div>
+            </MudDrawer>
+        </Authorized>
+    </AuthorizeView>
+
+    <MudMainContent Class="main-content">
+        <div class="page-container">
+            @Body
+        </div>
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    private bool _drawerOpen = true;
+
+    private void ToggleDrawer() => _drawerOpen = !_drawerOpen;
+
+    private async Task LogoutAsync()
+    {
+        await Api.LogoutAsync();
+        Navigation.NavigateTo("/login", forceLoad: false);
+    }
+}

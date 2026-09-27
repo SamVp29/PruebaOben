@@ -1,0 +1,15 @@
+@inject NavigationManager Navigation
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="redirect-message">
+    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+    <MudText Typo="Typo.body1">Redirigiendo al inicio de sesión…</MudText>
+</MudContainer>
+
+@code {
+    protected override void OnInitialized()
+    {
+        var relative = Navigation.ToBaseRelativePath(Navigation.Uri);
+        var returnUrl = Uri.EscapeDataString("/" + relative);
+        Navigation.NavigateTo($"/login?returnUrl={returnUrl}", replace: true);
+    }
+}

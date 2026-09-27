@@ -37,6 +37,9 @@
     <!-- Versions -->
     <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
     <ApplicationVersion>1</ApplicationVersion>
+    <AndroidPackageFormat Condition="'$(Configuration)' == 'Release'">apk</AndroidPackageFormat>
+    <AndroidManifest Condition="'$(Configuration)' == 'Debug'">Platforms\Android\AndroidManifest.Debug.xml</AndroidManifest>
+    <AndroidManifest Condition="'$(Configuration)' == 'Release'">Platforms\Android\AndroidManifest.xml</AndroidManifest>
 
     <!-- To develop, package, and publish an app to the Microsoft Store, see: https://aka.ms/MauiTemplateUnpackaged -->
     <WindowsPackageType>None</WindowsPackageType>
@@ -67,6 +70,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.0" />
     <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="$(MauiVersion)" />
     <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0" />

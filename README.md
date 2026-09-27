@@ -2,10 +2,10 @@ PROYECTO PRUEBAOBEN - ARQUITECTURA GENERAL
 ============================================
 
 Documento general del proyecto.
-Los detalles y checklists de cada área se encuentran en:
-- 02-Database.txt
-- 03-Backend.txt
-- 04-Frontend.txt
+Los detalles de cada área se encuentran en:
+- Database/database.md
+- Backend/backend.md
+- Frontend/frontend.md
 
 1. OBJETIVO
 -----------
@@ -272,11 +272,15 @@ utilizados en esta etapa.
 [OK] Swagger funcionando.
 [OK] API de gestión de usuarios, autenticación JWT y consulta paginada
 de auditoría implementadas.
-[EN PROCESO] Pruebas integradas y asociación del actor de auditoría
-mediante SESSION_CONTEXT.
-[ ] Frontend funcional.
-[ ] Integración Web/MAUI con API.
-[ ] APK Android.
+[EN PROCESO] Pruebas integradas de extremo a extremo en Web/dispositivo
+y asociación del actor de auditoría mediante SESSION_CONTEXT.
+[OK] Frontend compartido implementado para Web y MAUI con MudBlazor.
+[OK] Hosts Web, MAUI Windows y Android compilan; APK Android generado.
+[EN PROCESO] Configuración de URL HTTPS y firma Release definitivas
+antes de distribuir el APK.
+
+El detalle de arquitectura, ejecución, verificación y temas pendientes
+del frontend está en Frontend/frontend.md.
 
 14. REGLA DE DOCUMENTACIÓN
 --------------------------
