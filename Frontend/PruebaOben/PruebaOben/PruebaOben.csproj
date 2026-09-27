@@ -38,9 +38,6 @@
     <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
     <ApplicationVersion>1</ApplicationVersion>
     <AndroidPackageFormat Condition="'$(Configuration)' == 'Release'">apk</AndroidPackageFormat>
-    <AndroidManifest Condition="'$(Configuration)' == 'Debug'">Platforms\Android\AndroidManifest.Debug.xml</AndroidManifest>
-    <AndroidManifest Condition="'$(Configuration)' == 'Release'">Platforms\Android\AndroidManifest.xml</AndroidManifest>
-
     <!-- To develop, package, and publish an app to the Microsoft Store, see: https://aka.ms/MauiTemplateUnpackaged -->
     <WindowsPackageType>None</WindowsPackageType>
 
@@ -78,6 +75,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\PruebaOben.Shared\PruebaOben.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(Configuration)' == 'Debug' And '$(TargetFramework)' == 'net10.0-android'">
+    <AndroidManifestOverlay Include="Platforms\Android\AndroidManifest.Debug.xml" />
   </ItemGroup>
 
 </Project>
