@@ -317,12 +317,6 @@ a {
 }
 
 @media (max-width: 600px) {
-    .maui-host .status-bar-safe-area {
-        display: block;
-        height: 24px;
-        background: #fff;
-    }
-
     .maui-host .mud-appbar {
         padding-inline: 8px;
     }

@@ -2,6 +2,32 @@
     display: none;
 }
 
+@media (max-width: 600px) {
+    :root {
+        --android-status-bar-inset: max(env(safe-area-inset-top, 0px), 52px);
+    }
+
+    .maui-host .mud-appbar.mud-appbar-fixed-top {
+        top: var(--android-status-bar-inset);
+    }
+
+    .maui-host .mud-main-content {
+        padding-top: calc(
+            var(--mud-appbar-height) - var(--mud-appbar-height) / 8
+            + var(--android-status-bar-inset));
+    }
+
+    .maui-host .mud-drawer.mud-drawer-responsive {
+        top: var(--android-status-bar-inset);
+        height: calc(100% - var(--android-status-bar-inset));
+    }
+
+    .maui-host .mud-drawer-overlay {
+        top: var(--android-status-bar-inset);
+        height: calc(100% - var(--android-status-bar-inset));
+    }
+}
+
 @supports (-webkit-touch-callout: none) {
     .status-bar-safe-area {
         display: flex;

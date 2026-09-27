@@ -203,8 +203,9 @@ mantener el dispositivo y el equipo en la misma red. El manifiesto
 Android de Debug permite HTTP solo para facilitar desarrollo local.
 
 INTERFAZ EN MÓVIL
-- El host MAUI reserva espacio superior para los indicadores del
-  sistema y separa el botón de navegación del borde de la pantalla.
+- En Android, el app bar, el contenido y el menú lateral se desplazan
+  debajo del área segura superior para que no se superpongan con la hora,
+  los indicadores ni el recorte de pantalla.
 - El directorio y la auditoría cambian a tarjetas compactas en pantallas
   estrechas para evitar columnas cortadas y desplazamiento horizontal.
 
