@@ -128,6 +128,9 @@ USUARIOS
   el borrado lógico. Para Admin, el usuario permanece en el directorio
   marcado como "Eliminado lógicamente", sin permitir edición ni otro
   borrado lógico, y con la opción de borrado permanente disponible.
+- En pantallas estrechas, el directorio se muestra como tarjetas de
+  usuario en lugar de una tabla ancha; la búsqueda y las acciones se
+  mantienen disponibles en cada tarjeta.
 - El listado normal de usuarios sigue excluyendo eliminados lógicos;
   solo el listado extendido administrativo los incluye. Tras eliminar
   permanentemente, el registro sale del directorio.
@@ -198,6 +201,12 @@ AndroidBaseAddress a la dirección LAN de la computadora, por ejemplo
 `http://192.168.1.20:5083/`, iniciar la API escuchando en esa interfaz y
 mantener el dispositivo y el equipo en la misma red. El manifiesto
 Android de Debug permite HTTP solo para facilitar desarrollo local.
+
+INTERFAZ EN MÓVIL
+- El host MAUI reserva espacio superior para los indicadores del
+  sistema y separa el botón de navegación del borde de la pantalla.
+- El directorio y la auditoría cambian a tarjetas compactas en pantallas
+  estrechas para evitar columnas cortadas y desplazamiento horizontal.
 
 MAUI RELEASE / APK
 Resources/Raw/api-config.json se usa para Release. Reemplazar

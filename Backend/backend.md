@@ -215,10 +215,15 @@ Tipo: ASP.NET Core Web API
 Target: .NET 10
 
 Configurado:
-- HTTPS.
+- Redirección HTTP a HTTPS en entornos distintos de Development.
 - OpenAPI.
 - Swagger.
 - Swagger UI.
+
+En desarrollo, la API no fuerza la redirección HTTPS: esto permite que el
+emulador Android consuma el perfil HTTP local (`http://localhost:5083`)
+sin el aviso de `HttpsRedirectionMiddleware` cuando no existe un puerto
+HTTPS configurado. Fuera de Development, la redirección se mantiene.
 
 Paquete OpenAPI: Microsoft.AspNetCore.OpenApi 10.0.12.
 

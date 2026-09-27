@@ -50,34 +50,60 @@
     }
     else
     {
-        <MudTable Items="_items" Dense="true" Hover="true" Breakpoint="Breakpoint.Md" Elevation="0" Class="data-table audit-table">
-            <HeaderContent>
-                <MudTh>Acción</MudTh><MudTh>Entidad / campo</MudTh><MudTh>Usuario afectado</MudTh><MudTh>Actor</MudTh><MudTh>Valores</MudTh><MudTh>Fecha</MudTh>
-            </HeaderContent>
-            <RowTemplate>
-                <MudTd DataLabel="Acción"><MudChip T="string" Size="Size.Small" Color="@ActionColor(context.accion)" Variant="Variant.Outlined">@context.accion</MudChip></MudTd>
-                <MudTd DataLabel="Entidad / campo">
-                    <MudText Typo="Typo.body2">@context.entidad</MudText>
-                    @if (!string.IsNullOrWhiteSpace(context.nombreCampo))
+        <div class="audit-table-desktop">
+            <MudTable Items="_items" Dense="true" Hover="true" Breakpoint="Breakpoint.Md" Elevation="0" Class="data-table audit-table">
+                <HeaderContent>
+                    <MudTh>Acción</MudTh><MudTh>Entidad / campo</MudTh><MudTh>Usuario afectado</MudTh><MudTh>Actor</MudTh><MudTh>Valores</MudTh><MudTh>Fecha</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Acción"><MudChip T="string" Size="Size.Small" Color="@ActionColor(context.accion)" Variant="Variant.Outlined">@context.accion</MudChip></MudTd>
+                    <MudTd DataLabel="Entidad / campo">
+                        <MudText Typo="Typo.body2">@context.entidad</MudText>
+                        @if (!string.IsNullOrWhiteSpace(context.nombreCampo))
+                        {
+                            <MudText Typo="Typo.caption" Class="muted-text">@context.nombreCampo</MudText>
+                        }
+                    </MudTd>
+                    <MudTd DataLabel="Usuario afectado">@(AffectedUserId(context)?.ToString() ?? "—")</MudTd>
+                    <MudTd DataLabel="Actor">@(context.cambioRealizado?.ToString() ?? "No informado")</MudTd>
+                    <MudTd DataLabel="Valores">
+                        @if (context.nombreCampo is not null)
+                        {
+                            <MudText Typo="Typo.caption" Class="audit-value">@(context.valorAnterior ?? "∅") → @(context.valorNuevo ?? "∅")</MudText>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.caption" Class="muted-text">—</MudText>
+                        }
+                    </MudTd>
+                    <MudTd DataLabel="Fecha">@context.cambioAt.ToLocalTime().ToString("g")</MudTd>
+                </RowTemplate>
+            </MudTable>
+        </div>
+        <div class="audit-mobile-list">
+            @foreach (var audit in _items)
+            {
+                <MudPaper @key="audit.id" Elevation="0" Class="audit-mobile-card">
+                    <div class="audit-mobile-heading">
+                        <MudChip T="string" Size="Size.Small" Color="@ActionColor(audit.accion)" Variant="Variant.Outlined">@audit.accion</MudChip>
+                        <MudText Typo="Typo.caption" Class="muted-text">@audit.cambioAt.ToLocalTime().ToString("g")</MudText>
+                    </div>
+                    <MudText Typo="Typo.body1" Class="audit-mobile-entity">@audit.entidad</MudText>
+                    @if (!string.IsNullOrWhiteSpace(audit.nombreCampo))
                     {
-                        <MudText Typo="Typo.caption" Class="muted-text">@context.nombreCampo</MudText>
+                        <MudText Typo="Typo.caption" Class="muted-text">@audit.nombreCampo</MudText>
                     }
-                </MudTd>
-                <MudTd DataLabel="Usuario afectado">@(AffectedUserId(context)?.ToString() ?? "—")</MudTd>
-                <MudTd DataLabel="Actor">@(context.cambioRealizado?.ToString() ?? "No informado")</MudTd>
-                <MudTd DataLabel="Valores">
-                    @if (context.nombreCampo is not null)
+                    <div class="audit-mobile-details">
+                        <MudText Typo="Typo.caption">Usuario afectado: @(AffectedUserId(audit)?.ToString() ?? "—")</MudText>
+                        <MudText Typo="Typo.caption">Actor: @(audit.cambioRealizado?.ToString() ?? "No informado")</MudText>
+                    </div>
+                    @if (audit.nombreCampo is not null)
                     {
-                        <MudText Typo="Typo.caption" Class="audit-value">@(context.valorAnterior ?? "∅") → @(context.valorNuevo ?? "∅")</MudText>
+                        <MudText Typo="Typo.caption" Class="audit-value">@(audit.valorAnterior ?? "∅") → @(audit.valorNuevo ?? "∅")</MudText>
                     }
-                    else
-                    {
-                        <MudText Typo="Typo.caption" Class="muted-text">—</MudText>
-                    }
-                </MudTd>
-                <MudTd DataLabel="Fecha">@context.cambioAt.ToLocalTime().ToString("g")</MudTd>
-            </RowTemplate>
-        </MudTable>
+                </MudPaper>
+            }
+        </div>
         <div class="pagination-row">
             <MudText Typo="Typo.caption" Class="muted-text">Página @_page de @PageCount</MudText>
             <MudPagination Count="@PageCount" Selected="@_page" SelectedChanged="LoadPageAsync"
