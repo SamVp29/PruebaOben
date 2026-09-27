@@ -310,8 +310,10 @@ Elimina físicamente al usuario. Solo lo puede ejecutar un usuario con
 rol Admin. La auditoría conserva su ID, username y fullname y mantiene
 la identidad del actor; no conserva correo ni passwordHash.
 
-GET /api/audit?page=1&pageSize=50
+GET /api/audit?page=1&pageSize=50&action=UPDATE
 Obtiene una página del historial de auditoría (ver AuditController).
+`action` es opcional y admite INSERT, UPDATE o DELETE; filtra los
+resultados antes de paginar y actualiza `totalCount`.
 
 Flujo: HTTP Request-> UsersController-> IUserService-> UserService-> IUserRepository-> UserRepository-> SQL Server
 
@@ -367,6 +369,7 @@ igual que las rutas actuales de usuarios.
 Parámetros opcionales:
 - page: empieza en 1; valor por defecto 1.
 - pageSize: valor por defecto 50; rango permitido de 1 a 100.
+- action: INSERT, UPDATE o DELETE; sin valor incluye todas las acciones.
 
 La respuesta incluye page, pageSize, totalCount e items. Los registros
 se ordenan por cambioAt descendente y, como desempate, id descendente.
@@ -387,7 +390,8 @@ AuditController -> IAuditLogService -> AuditLogService
 
 La lectura usa SQL parametrizado con Microsoft.Data.SqlClient. No se
 usa ORM. La paginación limita el tamaño de respuesta y el repositorio
-obtiene el total y la página en dos consultas SQL.
+obtiene el total y la página en dos consultas SQL. El filtro de acción se
+valida en el Controller y se aplica con parámetros SQL en ambas consultas.
 
 6. APPLICATION
 --------------
@@ -660,8 +664,6 @@ de lectura y escritura agregaría complejidad sin una necesidad clara.
   usuario eliminado; no guarda correo ni passwordHash.
 - Implementado: FK de auditLogs con ON DELETE SET NULL para conservar el
   historial sin mantener una FK al usuario eliminado.
-- Parcial: CreateUserDto y UpdateUserDto no tienen DataAnnotations;
-  solamente se comprueba el email duplicado al crear en UserService.
 - La migración `Database/Migrations/20260926_UserPhysicalDeleteAudit.sql`
   se aplicó a la base local. Debe aplicarse en otros entornos antes de
   habilitar la eliminación física.
@@ -670,12 +672,13 @@ de lectura y escritura agregaría complejidad sin una necesidad clara.
 -----------------------
 El mapeo ya está implementado manualmente en
 `UserService.MapToResponse(User)`. Copia al `UserResponseDto` los campos
-públicos permitidos y omite `passwordHash` y `deletedAt`.
+públicos permitidos, incluidos `updatedAt` y `deletedAt`, y omite
+`passwordHash`.
 
 No se usa una librería de mapeo: para este modelo pequeño, asignar las
 propiedades explícitamente evita agregar una dependencia y hace visible
-qué datos se devuelven. Actualmente falta asignar `updatedAt` aunque la
-propiedad existe en la entidad y el DTO.
+qué datos se devuelven. El mapeo copia `updatedAt`, incluye `deletedAt`
+para los listados administrativos y omite `passwordHash`.
 
 Sustentación: "Convierto User a UserResponseDto con asignaciones C#
 explícitas. No uso AutoMapper ni un ORM; así controlo directamente qué
@@ -761,9 +764,9 @@ APPLICATION
 [OK] AuthService + JWT
 [OK] IUserService.
 [OK] UserService.
-[PARCIAL] Validación: LoginDto y email duplicado al crear; faltan
-reglas en CreateUserDto y UpdateUserDto.
-[OK] Mapeo manual Entity -> DTO (falta copiar updatedAt).
+[PENDIENTE DE ENDURECIMIENTO] Validación de campos en CreateUserDto y
+UpdateUserDto.
+[OK] Mapeo manual Entity -> DTO; también copia updatedAt.
 [PARCIAL] Manejo básico de errores HTTP; no hay traducción completa de
 errores SQL ni manejo global.
 
@@ -774,37 +777,44 @@ API
 [OK] UsersController y sus seis rutas de usuario.
 [OK] AuthController y POST /api/auth/login.
 [OK] AuditController y GET /api/audit con paginación.
+[OK] Filtro opcional de auditoría por acción con totalCount filtrado.
 [OK] Firma y validación JWT; UsersController requiere [Authorize].
 [OK] Eliminación física restringida a rol Admin.
 [OK] SESSION_CONTEXT desde C# en las operaciones de escritura de usuarios.
 
-PRUEBAS
-[ ] Probar CRUD desde Swagger.
-[ ] Probar validaciones.
-[ ] Probar autenticación.
-[EN PROCESO] Verificar actor en eventos SQL usando la migración local.
+PRUEBAS Y ENDURECIMIENTO
+[OK] CRUD, autenticación, operaciones con actor y auditoría probados
+en la base local.
+[OK] GET /api/audit probado con autenticación, paginación y filtro por
+acción.
+[OK] Filtro probado desde la UI Android: cada acción muestra solo sus
+eventos y Todas restablece el historial completo.
+[PENDIENTE] Agregar reglas de validación de campos a CreateUserDto y
+UpdateUserDto.
+[PENDIENTE] Traducir violaciones UNIQUE de username y email a 409 y
+añadir manejo global uniforme de excepciones.
 
 BUILD
 [OK] `dotnet build Backend/PruebaOben.Api/PruebaOben.Api.csproj`
 compila sin errores.
 [OK] Smoke HTTP local: Swagger publica /api/audit; sin JWT devuelve 401;
-con un JWT de prueba, page=0 y pageSize=101 devuelven 400.
-[OK] Consulta autenticada contra SQL Server configurado: page=1 y
-pageSize=2 devolvieron 200, totalCount=12 e items=2.
+page fuera de rango, action desconocida y pageSize mayor a 100 devuelven 400.
+[OK] Consulta autenticada contra SQL Server: pageSize limita los elementos
+devueltos y totalCount coincide con el filtro de acción.
 
-14. PRÓXIMOS PASOS
+14. TRABAJO OPCIONAL DE ENDURECIMIENTO
 ----------------
-1. Probar en Swagger: iniciar sesión, copiar el JWT y usarlo como
+1. [COMPLETADO] Probar autenticación JWT y rutas protegidas en el entorno local.
    credencial Bearer al llamar cada ruta protegida.
-2. Probar CRUD y confirmar los registros creados por los triggers en
-   auditLogs.
-3. Aplicar la migración física-auditoría en la base y probar los
-   eventos INSERT/UPDATE/DELETE con el actor en `cambioRealizado`.
-4. Completar validación de CreateUserDto/UpdateUserDto y decidir cómo
+2. [COMPLETADO] Probar CRUD y confirmar en auditLogs los eventos de los
+   triggers.
+3. [COMPLETADO EN LOCAL] Aplicar la migración y verificar los eventos
+   INSERT/UPDATE/DELETE con el actor en `cambioRealizado`.
+4. [PENDIENTE OPCIONAL] Completar validación de CreateUserDto/UpdateUserDto y decidir cómo
    traducir violaciones UNIQUE a 409 Conflict.
-5. Asignar `updatedAt` en `MapToResponse` si debe mostrarse al cliente.
-6. Considerar retirar `/weatherforecast` cuando ya no se necesite el
-   endpoint de ejemplo.
+5. [COMPLETADO] Asignar `updatedAt` en `MapToResponse`.
+6. [OPCIONAL] Retirar `/weatherforecast` si se quiere limpiar el endpoint
+   de ejemplo del template.
 
 15. SUSTENTACIÓN
 ----------------

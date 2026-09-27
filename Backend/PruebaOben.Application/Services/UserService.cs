@@ -155,6 +155,6 @@ public class UserService : IUserService
         };
 
         // Observa que passwordHash NO se devuelve.
-        // deletedAt tampoco forma parte de la respuesta pública.
+        // deletedAt permite distinguir los usuarios eliminados lógicamente.
     }
 }

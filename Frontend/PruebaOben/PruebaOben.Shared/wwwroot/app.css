@@ -183,6 +183,29 @@ a {
     min-width: 1000px;
 }
 
+.users-table-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    width: 100%;
+    padding: 8px 12px;
+}
+
+.users-search-field {
+    width: min(100%, 280px);
+}
+
+.audit-filters {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.audit-action-filter {
+    width: 200px;
+}
+
 .data-table .mud-table-head .mud-table-cell {
     color: var(--app-muted);
     font-size: .75rem;
@@ -234,10 +257,6 @@ a {
     gap: 12px;
     color: var(--app-muted);
     text-align: center;
-}
-
-.audit-note {
-    margin-bottom: 18px;
 }
 
 .audit-value {
@@ -368,12 +387,33 @@ a {
         width: 100%;
     }
 
-    .audit-value {
-        max-width: none;
+    .audit-filters {
+        width: 100%;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-items: start;
+        gap: 8px;
     }
 
-    .audit-note {
-        font-size: .85rem;
+    .audit-action-filter,
+    .audit-filters .page-size-select {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .users-table-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+        gap: 8px;
+        padding: 8px;
+    }
+
+    .users-search-field {
+        width: 100%;
+    }
+
+    .audit-value {
+        max-width: none;
     }
 
     .login-card {

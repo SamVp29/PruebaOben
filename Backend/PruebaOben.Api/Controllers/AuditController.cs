@@ -12,6 +12,7 @@ public class AuditController : ControllerBase
 {
     private const int DefaultPageSize = 50;
     private const int MaxPageSize = 100;
+    private static readonly string[] AllowedActions = ["INSERT", "UPDATE", "DELETE"];
 
     private readonly IAuditLogService _auditLogService;
 
@@ -23,7 +24,8 @@ public class AuditController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<AuditLogPageDto>> GetPage(
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = DefaultPageSize)
+        [FromQuery] int pageSize = DefaultPageSize,
+        [FromQuery] string? action = null)
     {
         if (page < 1)
         {
@@ -38,7 +40,18 @@ public class AuditController : ControllerBase
             });
         }
 
-        var auditLogs = await _auditLogService.GetPageAsync(page, pageSize);
+        action = string.IsNullOrWhiteSpace(action)
+            ? null
+            : action.Trim().ToUpperInvariant();
+        if (action is not null && !AllowedActions.Contains(action, StringComparer.Ordinal))
+        {
+            return BadRequest(new
+            {
+                message = $"action debe ser uno de estos valores: {string.Join(", ", AllowedActions)}."
+            });
+        }
+
+        var auditLogs = await _auditLogService.GetPageAsync(page, pageSize, action);
         return Ok(auditLogs);
     }
 }

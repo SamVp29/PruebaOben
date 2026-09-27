@@ -134,6 +134,8 @@ USUARIOS
 - El directorio conserva encabezados y filas de tabla en Web y MAUI;
   en pantallas estrechas se desplaza horizontalmente para mantener todas
   las columnas y acciones accesibles.
+- El buscador se integra en la barra de la tabla, inmediatamente encima
+  de los encabezados, para compactar el directorio.
 - El listado normal de usuarios sigue excluyendo eliminados lógicos;
   solo el listado extendido administrativo los incluye. Tras eliminar
   permanentemente, el registro sale del directorio.
@@ -152,8 +154,12 @@ representación HTML normal del navegador; Blazor aplica las
 actualizaciones puntuales cuando cambia el estado de los componentes.
 
 AUDITORÍA
-- GET /api/audit?page={page}&pageSize={pageSize}.
+- GET /api/audit?page={page}&pageSize={pageSize}&action={INSERT|UPDATE|DELETE}.
 - Paginación con 25, 50 o 100 filas.
+- Filtro por acción aplicado antes de paginar para que coincidan los
+  resultados y el total encontrado.
+- No se muestra un aviso informativo fijo; los mensajes de error y el
+  estado vacío según el filtro se mantienen.
 - Presenta acción, entidad/campo, usuario afectado, actor, valores y
   fecha.
 - El usuario afectado y el actor se muestran por username, también en

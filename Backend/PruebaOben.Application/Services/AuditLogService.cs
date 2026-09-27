@@ -14,10 +14,10 @@ public class AuditLogService : IAuditLogService
         _repository = repository;
     }
 
-    public async Task<AuditLogPageDto> GetPageAsync(int page, int pageSize)
+    public async Task<AuditLogPageDto> GetPageAsync(int page, int pageSize, string? action)
     {
         var offset = ((long)page - 1) * pageSize;
-        var (items, totalCount) = await _repository.GetPageAsync(offset, pageSize);
+        var (items, totalCount) = await _repository.GetPageAsync(offset, pageSize, action);
 
         return new AuditLogPageDto
         {

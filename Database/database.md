@@ -242,9 +242,11 @@ INSERT/UPDATE/DELETE de API con el actor en cambioRealizado.
 [OK] Definir comportamiento de DELETE físico y snapshot auditado.
 [OK] Retirar filas sintéticas generadas para la prueba.
 
-15. PRÓXIMOS PASOS
-------------------
-- Aplicar la migración Database/Migrations/20260926_UserPhysicalDeleteAudit.sql
-  en cualquier entorno adicional antes de habilitar DELETE físico.
-- Probar en la UI con un usuario de rol Admin y validar auditoría desde
-  la pantalla.
+15. DESPLIEGUE EN OTROS ENTORNOS
+--------------------------------
+- La base local, sus triggers, SESSION_CONTEXT y la eliminación física
+  con auditoría están implementados y probados.
+- Antes de habilitar eliminación física en otra base, aplicar allí la
+  migración Database/Migrations/20260926_UserPhysicalDeleteAudit.sql.
+- La pantalla de auditoría con filtro por acción también está verificada
+  contra la base local.

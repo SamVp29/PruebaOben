@@ -17,17 +17,21 @@ public class AuditLogRepository : IAuditLogRepository
 
     public async Task<(IReadOnlyList<AuditLog> Items, long TotalCount)> GetPageAsync(
         long offset,
-        int pageSize)
+        int pageSize,
+        string? action)
     {
         using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync();
 
         const string countSql = """
         SELECT COUNT_BIG(*)
-        FROM dbo.auditLogs;
+        FROM dbo.auditLogs
+        WHERE @action IS NULL OR accion = @action;
         """;
 
         using var countCommand = new SqlCommand(countSql, connection);
+        countCommand.Parameters.Add("@action", SqlDbType.NVarChar, 20).Value =
+            (object?)action ?? DBNull.Value;
         var totalCount = (long)(await countCommand.ExecuteScalarAsync()
             ?? throw new InvalidOperationException(
                 "No se pudo obtener el total de registros de auditoría."));
@@ -85,6 +89,7 @@ public class AuditLogRepository : IAuditLogRepository
                 AND deletedActor.valorAnterior IS NOT NULL
             ORDER BY deletedActor.cambioAt DESC, deletedActor.id DESC
         ) AS actorDelete
+        WHERE @action IS NULL OR audit.accion = @action
         ORDER BY audit.cambioAt DESC, audit.id DESC
         OFFSET @offset ROWS
         FETCH NEXT @pageSize ROWS ONLY;
@@ -93,6 +98,8 @@ public class AuditLogRepository : IAuditLogRepository
         using var pageCommand = new SqlCommand(pageSql, connection);
         pageCommand.Parameters.Add("@offset", SqlDbType.BigInt).Value = offset;
         pageCommand.Parameters.Add("@pageSize", SqlDbType.Int).Value = pageSize;
+        pageCommand.Parameters.Add("@action", SqlDbType.NVarChar, 20).Value =
+            (object?)action ?? DBNull.Value;
 
         var items = new List<AuditLog>();
         using var reader = await pageCommand.ExecuteReaderAsync();

@@ -24,15 +24,8 @@
 }
 
 <MudPaper Elevation="0" Class="content-card">
-    <div class="section-heading table-toolbar">
-        <div>
-            <MudText Typo="Typo.h6">Directorio</MudText>
-            <MudText Typo="Typo.body2" Class="muted-text">@FilteredUsers.Count() usuarios visibles</MudText>
-        </div>
-        <MudTextField T="string" @bind-Value="_search" Placeholder="Buscar usuario…"
-                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                      Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true"
-                      Class="search-field" />
+    <div class="section-heading">
+        <MudText Typo="Typo.h6">Directorio</MudText>
     </div>
 
     @if (_loading)
@@ -50,6 +43,15 @@
     {
         <MudTable Items="FilteredUsers" Dense="true" Hover="true" Breakpoint="Breakpoint.None"
                   Elevation="0" Class="data-table users-table">
+            <ToolBarContent>
+                <div class="users-table-toolbar">
+                    <MudText Typo="Typo.body2" Class="muted-text">@FilteredUsers.Count() usuarios visibles</MudText>
+                    <MudTextField T="string" @bind-Value="_search" Placeholder="Buscar usuario…"
+                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                                  Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true"
+                                  Class="users-search-field" />
+                </div>
+            </ToolBarContent>
             <HeaderContent>
                 <MudTh>Usuario</MudTh><MudTh>Correo</MudTh><MudTh>Rol</MudTh><MudTh>Estado</MudTh><MudTh>Creado</MudTh><MudTh>Acciones</MudTh>
             </HeaderContent>

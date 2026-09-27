@@ -6,5 +6,6 @@ public interface IAuditLogRepository
 {
     Task<(IReadOnlyList<AuditLog> Items, long TotalCount)> GetPageAsync(
         long offset,
-        int pageSize);
+        int pageSize,
+        string? action);
 }

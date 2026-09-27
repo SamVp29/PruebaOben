@@ -58,9 +58,19 @@ public sealed class ApiClient(
     public async Task PermanentlyDeleteUserAsync(int id) =>
         await SendAsync(HttpMethod.Delete, $"api/users/{id}/permanent");
 
-    public async Task<AuditPageDto> GetAuditAsync(int page, int pageSize) =>
-        await SendAsync<AuditPageDto>(
-            HttpMethod.Get, $"api/audit?page={page}&pageSize={pageSize}");
+    public async Task<AuditPageDto> GetAuditAsync(
+        int page,
+        int pageSize,
+        string? action = null)
+    {
+        var uri = $"api/audit?page={page}&pageSize={pageSize}";
+        if (!string.IsNullOrWhiteSpace(action))
+        {
+            uri += $"&action={Uri.EscapeDataString(action)}";
+        }
+
+        return await SendAsync<AuditPageDto>(HttpMethod.Get, uri);
+    }
 
     public async Task LogoutAsync()
     {
