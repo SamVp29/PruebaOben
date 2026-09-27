@@ -48,121 +48,61 @@
     }
     else
     {
-        <div class="users-table-desktop">
-            <MudTable Items="FilteredUsers" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm"
-                      Elevation="0" Class="data-table">
-                <HeaderContent>
-                    <MudTh>Usuario</MudTh><MudTh>Correo</MudTh><MudTh>Rol</MudTh><MudTh>Estado</MudTh><MudTh>Creado</MudTh><MudTh></MudTh>
-                </HeaderContent>
-                <RowTemplate>
-                    <MudTd DataLabel="Usuario">
-                        <div class="user-cell">
-                            <MudAvatar Size="Size.Small" Color="Color.Primary">@Initial(context.fullname)</MudAvatar>
-                            <div><MudText Typo="Typo.body2" Class="user-fullname">@context.fullname</MudText><MudText Typo="Typo.caption" Class="muted-text">@context.username</MudText></div>
-                        </div>
-                    </MudTd>
-                    <MudTd DataLabel="Correo">@context.email</MudTd>
-                    <MudTd DataLabel="Rol"><MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@context.rol</MudChip></MudTd>
-                    <MudTd DataLabel="Estado">
-                        @if (context.deletedAt is not null)
-                        {
-                            <MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined">Eliminado lógicamente</MudChip>
-                        }
-                        else
-                        {
-                            <MudChip T="string" Size="Size.Small" Color="@(context.active ? Color.Success : Color.Default)" Variant="Variant.Outlined">@(context.active ? "Activo" : "Inactivo")</MudChip>
-                        }
-                    </MudTd>
-                    <MudTd DataLabel="Creado">@context.createdAt.ToLocalTime().ToString("d")</MudTd>
-                    <MudTd DataLabel="Acciones" Class="actions-cell">
+        <MudTable Items="FilteredUsers" Dense="true" Hover="true" Breakpoint="Breakpoint.None"
+                  Elevation="0" Class="data-table users-table">
+            <HeaderContent>
+                <MudTh>Usuario</MudTh><MudTh>Correo</MudTh><MudTh>Rol</MudTh><MudTh>Estado</MudTh><MudTh>Creado</MudTh><MudTh>Acciones</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Usuario">
+                    <div class="user-cell">
+                        <MudAvatar Size="Size.Small" Color="Color.Primary">@Initial(context.fullname)</MudAvatar>
+                        <div><MudText Typo="Typo.body2" Class="user-fullname">@context.fullname</MudText><MudText Typo="Typo.caption" Class="muted-text">@context.username</MudText></div>
+                    </div>
+                </MudTd>
+                <MudTd DataLabel="Correo">@context.email</MudTd>
+                <MudTd DataLabel="Rol"><MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@context.rol</MudChip></MudTd>
+                <MudTd DataLabel="Estado">
+                    @if (context.deletedAt is not null)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined">Eliminado lógicamente</MudChip>
+                    }
+                    else
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="@(context.active ? Color.Success : Color.Default)" Variant="Variant.Outlined">@(context.active ? "Activo" : "Inactivo")</MudChip>
+                    }
+                </MudTd>
+                <MudTd DataLabel="Creado">@context.createdAt.ToLocalTime().ToString("d")</MudTd>
+                <MudTd DataLabel="Acciones" Class="actions-cell">
+                    @if (context.deletedAt is null)
+                    {
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" title="Editar usuario" OnClick="@(() => EditUserAsync(context))" />
+                    }
+                    <MudMenu Icon="@Icons.Material.Filled.MoreVert" title="Más acciones" Dense="true">
                         @if (context.deletedAt is null)
                         {
-                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" title="Editar usuario" OnClick="@(() => EditUserAsync(context))" />
+                            <MudMenuItem Icon="@(context.active ? Icons.Material.Filled.PersonOff : Icons.Material.Filled.Person)"
+                                         OnClick="@(() => SetActiveAsync(context, !context.active))">
+                                @(context.active ? "Desactivar cuenta" : "Activar cuenta")
+                            </MudMenuItem>
+                            <MudDivider />
+                            <MudMenuItem Icon="@Icons.Material.Filled.DeleteOutline"
+                                         OnClick="@(() => DeleteUserAsync(context))">
+                                Eliminar lógicamente
+                            </MudMenuItem>
                         }
-                        <MudMenu Icon="@Icons.Material.Filled.MoreVert" title="Más acciones" Dense="true">
-                            @if (context.deletedAt is null)
-                            {
-                                <MudMenuItem Icon="@(context.active ? Icons.Material.Filled.PersonOff : Icons.Material.Filled.Person)"
-                                             OnClick="@(() => SetActiveAsync(context, !context.active))">
-                                    @(context.active ? "Desactivar cuenta" : "Activar cuenta")
+                        <AuthorizeView Roles="Admin">
+                            <Authorized Context="authorizationState">
+                                <MudMenuItem Icon="@Icons.Material.Filled.DeleteForever"
+                                             OnClick="@(() => PermanentlyDeleteUserAsync(context))">
+                                    Eliminar permanentemente
                                 </MudMenuItem>
-                                <MudDivider />
-                                <MudMenuItem Icon="@Icons.Material.Filled.DeleteOutline"
-                                             OnClick="@(() => DeleteUserAsync(context))">
-                                    Eliminar lógicamente
-                                </MudMenuItem>
-                            }
-                            <AuthorizeView Roles="Admin">
-                                <Authorized Context="authorizationState">
-                                    <MudMenuItem Icon="@Icons.Material.Filled.DeleteForever"
-                                                 OnClick="@(() => PermanentlyDeleteUserAsync(context))">
-                                        Eliminar permanentemente
-                                    </MudMenuItem>
-                                </Authorized>
-                            </AuthorizeView>
-                        </MudMenu>
-                    </MudTd>
-                </RowTemplate>
-            </MudTable>
-        </div>
-        <div class="users-mobile-list">
-            @foreach (var user in FilteredUsers)
-            {
-                <MudPaper @key="user.id" Elevation="0" Class="user-mobile-card">
-                    <div class="user-mobile-heading">
-                        <div class="user-cell">
-                            <MudAvatar Size="Size.Medium" Color="Color.Primary">@Initial(user.fullname)</MudAvatar>
-                            <div class="user-mobile-name">
-                                <MudText Typo="Typo.body1" Class="user-fullname">@user.fullname</MudText>
-                                <MudText Typo="Typo.caption" Class="muted-text">@user.username</MudText>
-                            </div>
-                        </div>
-                        <div class="user-mobile-actions">
-                            @if (user.deletedAt is null)
-                            {
-                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary"
-                                               title="Editar usuario" OnClick="@(() => EditUserAsync(user))" />
-                            }
-                            <MudMenu Icon="@Icons.Material.Filled.MoreVert" title="Más acciones" Dense="true">
-                                @if (user.deletedAt is null)
-                                {
-                                    <MudMenuItem Icon="@(user.active ? Icons.Material.Filled.PersonOff : Icons.Material.Filled.Person)"
-                                                 OnClick="@(() => SetActiveAsync(user, !user.active))">
-                                        @(user.active ? "Desactivar cuenta" : "Activar cuenta")
-                                    </MudMenuItem>
-                                    <MudDivider />
-                                    <MudMenuItem Icon="@Icons.Material.Filled.DeleteOutline"
-                                                 OnClick="@(() => DeleteUserAsync(user))">
-                                        Eliminar lógicamente
-                                    </MudMenuItem>
-                                }
-                                <AuthorizeView Roles="Admin">
-                                    <Authorized Context="authorizationState">
-                                        <MudMenuItem Icon="@Icons.Material.Filled.DeleteForever"
-                                                     OnClick="@(() => PermanentlyDeleteUserAsync(user))">
-                                            Eliminar permanentemente
-                                        </MudMenuItem>
-                                    </Authorized>
-                                </AuthorizeView>
-                            </MudMenu>
-                        </div>
-                    </div>
-                    <MudText Typo="Typo.body2" Class="user-mobile-email">@user.email</MudText>
-                    <div class="user-mobile-details">
-                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@user.rol</MudChip>
-                        @if (user.deletedAt is not null)
-                        {
-                            <MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined">Eliminado lógicamente</MudChip>
-                        }
-                        else
-                        {
-                            <MudChip T="string" Size="Size.Small" Color="@(user.active ? Color.Success : Color.Default)" Variant="Variant.Outlined">@(user.active ? "Activo" : "Inactivo")</MudChip>
-                        }
-                    </div>
-                    <MudText Typo="Typo.caption" Class="muted-text">Creado @user.createdAt.ToLocalTime().ToString("d")</MudText>
-                </MudPaper>
-            }
-        </div>
+                            </Authorized>
+                        </AuthorizeView>
+                    </MudMenu>
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
     }
 </MudPaper>
 

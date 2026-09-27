@@ -131,9 +131,9 @@ USUARIOS
   el borrado lógico. Para Admin, el usuario permanece en el directorio
   marcado como "Eliminado lógicamente", sin permitir edición ni otro
   borrado lógico, y con la opción de borrado permanente disponible.
-- En pantallas estrechas, el directorio se muestra como tarjetas de
-  usuario en lugar de una tabla ancha; la búsqueda y las acciones se
-  mantienen disponibles en cada tarjeta.
+- El directorio conserva encabezados y filas de tabla en Web y MAUI;
+  en pantallas estrechas se desplaza horizontalmente para mantener todas
+  las columnas y acciones accesibles.
 - El listado normal de usuarios sigue excluyendo eliminados lógicos;
   solo el listado extendido administrativo los incluye. Tras eliminar
   permanentemente, el registro sale del directorio.

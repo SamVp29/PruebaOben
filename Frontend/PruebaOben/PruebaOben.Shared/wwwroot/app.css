@@ -179,6 +179,10 @@ a {
     min-width: 900px;
 }
 
+.users-table .mud-table-root {
+    min-width: 1000px;
+}
+
 .data-table .mud-table-head .mud-table-cell {
     color: var(--app-muted);
     font-size: .75rem;
@@ -313,10 +317,6 @@ a {
     margin: -12px 0 18px;
 }
 
-.users-mobile-list {
-    display: none;
-}
-
 @media (max-width: 900px) {
     .page-container {
         padding: 28px 24px 44px;
@@ -366,57 +366,6 @@ a {
 
     .search-field, .page-size-select {
         width: 100%;
-    }
-
-    .users-table-desktop {
-        display: none;
-    }
-
-    .users-mobile-list {
-        display: grid;
-        gap: 12px;
-    }
-
-    .user-mobile-card {
-        min-width: 0;
-        padding: 14px;
-        border: 1px solid var(--app-border);
-        border-radius: 12px !important;
-        background: #fff;
-    }
-
-    .user-mobile-heading {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 8px;
-    }
-
-    .user-mobile-heading .user-cell {
-        min-width: 0;
-    }
-
-    .user-mobile-name {
-        min-width: 0;
-        overflow-wrap: anywhere;
-    }
-
-    .user-mobile-actions {
-        display: flex;
-        flex: 0 0 auto;
-        margin: -8px -8px 0 0;
-    }
-
-    .user-mobile-email {
-        margin: 10px 0 !important;
-        overflow-wrap: anywhere;
-    }
-
-    .user-mobile-details {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-        margin-bottom: 8px;
     }
 
     .audit-value {
