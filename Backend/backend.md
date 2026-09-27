@@ -144,9 +144,12 @@ Utiliza:
 - SQL parametrizado.
 - async/await.
 
-GetAllAsync: Obtiene los usuarios que no están eliminados lógicamente.
-
-Utiliza: WHERE deletedAt IS NULL
+GetAllAsync:
+- Por defecto obtiene solo usuarios no eliminados lógicamente
+  (`deletedAt IS NULL`).
+- Con includeDeleted=true también devuelve los eliminados lógicamente;
+  el endpoint reserva ese modo al rol Admin para que pueda completar el
+  borrado permanente.
 
 GetByIdAsync:Obtiene un usuario específico mediante su id.
 
@@ -280,7 +283,10 @@ Bearer.
 
 Endpoints:
 GET /api/users
-Obtiene todos los usuarios.
+Obtiene usuarios no eliminados lógicamente.
+
+GET /api/users?includeDeleted=true
+Incluye eliminados lógicamente. Requiere rol Admin.
 
 GET /api/users/{id}
 Obtiene un usuario por ID.
@@ -757,7 +763,7 @@ API
 [OK] ASP.NET Core Web API.
 [OK] OpenAPI/Swagger.
 [OK] Swagger UI.
-[OK] UsersController y sus seis endpoints.
+[OK] UsersController y sus seis rutas de usuario.
 [OK] AuthController y POST /api/auth/login.
 [OK] AuditController y GET /api/audit con paginación.
 [OK] Firma y validación JWT; UsersController requiere [Authorize].

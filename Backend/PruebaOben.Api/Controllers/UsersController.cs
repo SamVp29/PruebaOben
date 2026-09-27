@@ -20,9 +20,15 @@ public class UsersController : ControllerBase
 
     // GET: api/users
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<UserResponseDto>>> GetAll()
+    public async Task<ActionResult<IEnumerable<UserResponseDto>>> GetAll(
+        [FromQuery] bool includeDeleted = false)
     {
-        var users = await _userService.GetAllAsync();
+        if (includeDeleted && !User.IsInRole("Admin"))
+        {
+            return Forbid();
+        }
+
+        var users = await _userService.GetAllAsync(includeDeleted);
 
         return Ok(users);
     }

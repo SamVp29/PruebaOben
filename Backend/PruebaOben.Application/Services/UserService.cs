@@ -24,11 +24,11 @@ public class UserService : IUserService
     // GET ALL
     // ============================================================
 
-    public async Task<IEnumerable<UserResponseDto>> GetAllAsync()
+    public async Task<IEnumerable<UserResponseDto>> GetAllAsync(bool includeDeleted = false)
     {
         // El repositorio se encarga únicamente de obtener
         // las entidades desde la base de datos.
-        var users = await _repository.GetAllAsync();
+        var users = await _repository.GetAllAsync(includeDeleted);
 
         // Convertimos cada entidad User en UserResponseDto.
         // Así controlamos exactamente qué información exponemos.
@@ -149,7 +149,9 @@ public class UserService : IUserService
             email = user.email,
             rol = user.rol,
             active = user.active,
-            createdAt = user.createdAt
+            createdAt = user.createdAt,
+            updatedAt = user.updatedAt,
+            deletedAt = user.deletedAt
         };
 
         // Observa que passwordHash NO se devuelve.

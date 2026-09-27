@@ -7,7 +7,7 @@ namespace PruebaOben.Application.Interfaces;
 
 public interface IUserService
 {
-    Task<IEnumerable<UserResponseDto>> GetAllAsync();
+    Task<IEnumerable<UserResponseDto>> GetAllAsync(bool includeDeleted = false);
 
     Task<UserResponseDto?> GetByIdAsync(int id);
 

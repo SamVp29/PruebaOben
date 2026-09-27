@@ -274,6 +274,8 @@ utilizados en esta etapa.
 de auditoría implementadas.
 [OK] Prueba de API/SQL local: CRUD de usuarios, actores de auditoría y
 eliminación física auditable; migración aplicada a PruebaOben local.
+[OK] Los usuarios eliminados lógicamente quedan visibles para Admin y
+pueden pasar a eliminación permanente desde el directorio.
 [EN PROCESO] Prueba de flujo de login/CRUD desde Web con credenciales
 de demostración y prueba Android en emulador/dispositivo.
 [OK] Frontend compartido implementado para Web y MAUI con MudBlazor.

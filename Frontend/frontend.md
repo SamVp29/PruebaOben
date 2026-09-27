@@ -115,6 +115,9 @@ USUARIOS
   rol.
 - PUT /api/users/{id} para actualizar campos y estado activo.
 - DELETE /api/users/{id} para borrado lógico.
+- GET /api/users?includeDeleted=true para que Admin consulte usuarios
+  eliminados lógicamente y pueda completar su eliminación permanente;
+  el API rechaza este parámetro para otros roles.
 - Crear y editar se realizan en un diálogo modal; desactivar pide
   confirmación.
 - El menú de acciones ofrece activar/desactivar, eliminar lógicamente
@@ -122,7 +125,12 @@ USUARIOS
 - "Desactivar cuenta" usa PUT /api/users/{id} con active=false; la cuenta
   sigue visible como inactiva y deletedAt no se modifica.
 - "Eliminar usuario" llama a DELETE /api/users/{id}; el Backend realiza
-  el borrado lógico y la interfaz lo retira del listado.
+  el borrado lógico. Para Admin, el usuario permanece en el directorio
+  marcado como "Eliminado lógicamente", sin permitir edición ni otro
+  borrado lógico, y con la opción de borrado permanente disponible.
+- El listado normal de usuarios sigue excluyendo eliminados lógicos;
+  solo el listado extendido administrativo los incluye. Tras eliminar
+  permanentemente, el registro sale del directorio.
 - "Eliminar permanentemente" requiere rol Admin y una confirmación que
   advierte que solo quedarán en auditoría ID, username y fullname.
 - Después de crear, editar o desactivar, la pantalla actualiza solo el

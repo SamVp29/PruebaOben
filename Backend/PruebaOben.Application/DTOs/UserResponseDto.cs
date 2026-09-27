@@ -29,4 +29,7 @@ public class UserResponseDto
 
     // Fecha de última modificación.
     public DateTime? updatedAt { get; set; }
+
+    // Fecha de eliminación lógica; solo se incluye en el listado administrativo.
+    public DateTime? deletedAt { get; set; }
 }

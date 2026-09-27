@@ -4,7 +4,7 @@ namespace PruebaOben.Domain.Interfaces;
 
 public interface IUserRepository
 {
-    Task<IEnumerable<User>> GetAllAsync();
+    Task<IEnumerable<User>> GetAllAsync(bool includeDeleted = false);
 
     Task<User?> GetByIdAsync(int id);
 

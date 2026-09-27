@@ -19,7 +19,7 @@ public class UserRepository : IUserRepository
         _connectionFactory = connectionFactory;
     }
 
-    public async Task<IEnumerable<User>> GetAllAsync()
+    public async Task<IEnumerable<User>> GetAllAsync(bool includeDeleted = false)
     {
         var users = new List<User>();
 
@@ -38,10 +38,12 @@ public class UserRepository : IUserRepository
             UpdatedAt,
             deletedAt
         FROM dbo.users
-        WHERE deletedAt IS NULL;
+        WHERE @includeDeleted = 1
+           OR deletedAt IS NULL;
         """;
 
         using var command = new SqlCommand(sql, connection);
+        command.Parameters.Add("@includeDeleted", SqlDbType.Bit).Value = includeDeleted;
 
         await connection.OpenAsync();
 

@@ -31,8 +31,10 @@ public sealed class ApiClient(
         await authenticationStateProvider.RefreshAsync();
     }
 
-    public async Task<IReadOnlyList<UserDto>> GetUsersAsync() =>
-        await SendAsync<IReadOnlyList<UserDto>>(HttpMethod.Get, "api/users");
+    public async Task<IReadOnlyList<UserDto>> GetUsersAsync(bool includeDeleted = false) =>
+        await SendAsync<IReadOnlyList<UserDto>>(
+            HttpMethod.Get,
+            includeDeleted ? "api/users?includeDeleted=true" : "api/users");
 
     public async Task<UserDto> CreateUserAsync(CreateUserRequest request) =>
         await SendAsync<UserDto>(HttpMethod.Post, "api/users", request);

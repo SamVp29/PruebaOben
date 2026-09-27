@@ -2,6 +2,7 @@
 @inject ApiClient Api
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <PageTitle>Usuarios · PruebaOben</PageTitle>
 
@@ -61,20 +62,35 @@
                 </MudTd>
                 <MudTd DataLabel="Correo">@context.email</MudTd>
                 <MudTd DataLabel="Rol"><MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@context.rol</MudChip></MudTd>
-                <MudTd DataLabel="Estado"><MudChip T="string" Size="Size.Small" Color="@(context.active ? Color.Success : Color.Default)" Variant="Variant.Outlined">@(context.active ? "Activo" : "Inactivo")</MudChip></MudTd>
+                <MudTd DataLabel="Estado">
+                    @if (context.deletedAt is not null)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined">Eliminado lógicamente</MudChip>
+                    }
+                    else
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="@(context.active ? Color.Success : Color.Default)" Variant="Variant.Outlined">@(context.active ? "Activo" : "Inactivo")</MudChip>
+                    }
+                </MudTd>
                 <MudTd DataLabel="Creado">@context.createdAt.ToLocalTime().ToString("d")</MudTd>
                 <MudTd DataLabel="Acciones" Class="actions-cell">
-                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" title="Editar usuario" OnClick="@(() => EditUserAsync(context))" />
+                    @if (context.deletedAt is null)
+                    {
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" title="Editar usuario" OnClick="@(() => EditUserAsync(context))" />
+                    }
                     <MudMenu Icon="@Icons.Material.Filled.MoreVert" title="Más acciones" Dense="true">
-                        <MudMenuItem Icon="@(context.active ? Icons.Material.Filled.PersonOff : Icons.Material.Filled.Person)"
-                                     OnClick="@(() => SetActiveAsync(context, !context.active))">
-                            @(context.active ? "Desactivar cuenta" : "Activar cuenta")
-                        </MudMenuItem>
-                        <MudDivider />
-                        <MudMenuItem Icon="@Icons.Material.Filled.DeleteOutline"
-                                     OnClick="@(() => DeleteUserAsync(context))">
-                            Eliminar lógicamente
-                        </MudMenuItem>
+                        @if (context.deletedAt is null)
+                        {
+                            <MudMenuItem Icon="@(context.active ? Icons.Material.Filled.PersonOff : Icons.Material.Filled.Person)"
+                                         OnClick="@(() => SetActiveAsync(context, !context.active))">
+                                @(context.active ? "Desactivar cuenta" : "Activar cuenta")
+                            </MudMenuItem>
+                            <MudDivider />
+                            <MudMenuItem Icon="@Icons.Material.Filled.DeleteOutline"
+                                         OnClick="@(() => DeleteUserAsync(context))">
+                                Eliminar lógicamente
+                            </MudMenuItem>
+                        }
                         <AuthorizeView Roles="Admin">
                             <Authorized Context="authorizationState">
                                 <MudMenuItem Icon="@Icons.Material.Filled.DeleteForever"
@@ -111,7 +127,9 @@
         _error = null;
         try
         {
-            _users = await Api.GetUsersAsync();
+            var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var isAdmin = authenticationState.User.IsInRole("Admin");
+            _users = await Api.GetUsersAsync(includeDeleted: isAdmin);
         }
         catch (ApiException ex)
         {
@@ -219,7 +237,7 @@
         try
         {
             await Api.DeleteUserAsync(user.id);
-            RemoveUser(user.id);
+            AddOrReplaceUser(CopyUser(user, active: false, deletedAt: DateTime.UtcNow));
             Snackbar.Add($"Se eliminó lógicamente a {user.fullname}.", Severity.Success);
         }
         catch (ApiException ex)
@@ -279,7 +297,7 @@
         return result is { Canceled: false, Data: true };
     }
 
-    private static UserDto CopyUser(UserDto user, bool active) =>
+    private static UserDto CopyUser(UserDto user, bool active, DateTime? deletedAt = null) =>
         new()
         {
             id = user.id,
@@ -289,7 +307,8 @@
             rol = user.rol,
             active = active,
             createdAt = user.createdAt,
-            updatedAt = user.updatedAt
+            updatedAt = user.updatedAt,
+            deletedAt = deletedAt
         };
 
     private void RemoveUser(int userId) =>
