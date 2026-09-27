@@ -115,8 +115,23 @@ USUARIOS
   rol.
 - PUT /api/users/{id} para actualizar campos y estado activo.
 - DELETE /api/users/{id} para borrado lógico.
+- Crear y editar se realizan en un diálogo modal; desactivar pide
+  confirmación.
+- "Desactivar cuenta" usa PUT /api/users/{id} con active=false; la cuenta
+  sigue visible como inactiva y deletedAt no se modifica.
+- "Eliminar usuario" llama a DELETE /api/users/{id}; el Backend realiza
+  el borrado lógico y la interfaz lo retira del listado.
+- Después de crear, editar o desactivar, la pantalla actualiza solo el
+  usuario afectado en memoria; al eliminar, lo retira del listado. No
+  vuelve a cargar la lista ni navega para refrescarla.
 - No hay acción de restaurar ni cambio de contraseña porque el Backend
   aún no expone esas operaciones.
+
+En Web, Interactive Server mantiene la sesión interactiva abierta y
+envía al navegador los cambios de interfaz como diferencias del DOM.
+Esto no equivale a recargar toda la página. El DOM sigue siendo la
+representación HTML normal del navegador; Blazor aplica las
+actualizaciones puntuales cuando cambia el estado de los componentes.
 
 AUDITORÍA
 - GET /api/audit?page={page}&pageSize={pageSize}.

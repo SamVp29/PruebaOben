@@ -1,6 +1,7 @@
 @page "/users"
 @inject ApiClient Api
 @inject ISnackbar Snackbar
+@inject IDialogService DialogService
 
 <PageTitle>Usuarios · PruebaOben</PageTitle>
 
@@ -11,7 +12,7 @@
         <MudText Typo="Typo.body1" Class="muted-text">Consulta y administra las cuentas registradas.</MudText>
     </div>
     <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PersonAdd"
-               OnClick="StartCreate" Disabled="_saving">
+               OnClick="CreateUserAsync">
         Nuevo usuario
     </MudButton>
 </div>
@@ -21,74 +22,11 @@
     <MudAlert Severity="Severity.Error" Variant="Variant.Outlined" Class="mb-4">@_error</MudAlert>
 }
 
-@if (_formOpen)
-{
-    <MudPaper Elevation="0" Class="content-card user-form-card">
-        <div class="section-heading">
-            <div>
-                <MudText Typo="Typo.h6">@(_editingId is null ? "Crear usuario" : "Editar usuario")</MudText>
-                <MudText Typo="Typo.body2" Class="muted-text">Completa los datos de la cuenta.</MudText>
-            </div>
-            <MudIconButton Icon="@Icons.Material.Filled.Close" title="Cancelar" OnClick="CancelForm" />
-        </div>
-        <EditForm Model="_form" OnValidSubmit="SaveAsync">
-            <DataAnnotationsValidator />
-            <ValidationSummary />
-            <MudGrid Spacing="2">
-                <MudItem xs="12" sm="6">
-                    <MudTextField T="string" Label="Nombre de usuario" @bind-Value="_form.username"
-                                  For="@(() => _form.username)" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                </MudItem>
-                <MudItem xs="12" sm="6">
-                    <MudTextField T="string" Label="Nombre completo" @bind-Value="_form.fullname"
-                                  For="@(() => _form.fullname)" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                </MudItem>
-                <MudItem xs="12" sm="6">
-                    <MudTextField T="string" Label="Correo electrónico" @bind-Value="_form.email"
-                                  For="@(() => _form.email)" InputType="InputType.Email"
-                                  Variant="Variant.Outlined" Margin="Margin.Dense" />
-                </MudItem>
-                <MudItem xs="12" sm="6">
-                    <MudSelect T="string" Label="Rol" @bind-Value="_form.rol"
-                               Variant="Variant.Outlined" Margin="Margin.Dense">
-                        <MudSelectItem Value="@("User")">Usuario</MudSelectItem>
-                        <MudSelectItem Value="@("Admin")">Administrador</MudSelectItem>
-                    </MudSelect>
-                </MudItem>
-                @if (_editingId is null)
-                {
-                    <MudItem xs="12">
-                        <MudTextField T="string" Label="Contraseña inicial" @bind-Value="_form.password"
-                                      For="@(() => _form.password)" InputType="InputType.Password"
-                                      Variant="Variant.Outlined" Margin="Margin.Dense"
-                                      HelperText="Usa al menos 8 caracteres." />
-                    </MudItem>
-                }
-                else
-                {
-                    <MudItem xs="12">
-                        <MudSwitch T="bool" @bind-Value="_form.active" Color="Color.Success">
-                            Cuenta activa
-                        </MudSwitch>
-                    </MudItem>
-                }
-            </MudGrid>
-            <div class="form-actions">
-                <MudButton Variant="Variant.Text" OnClick="CancelForm" Disabled="_saving">Cancelar</MudButton>
-                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
-                           Disabled="_saving" StartIcon="@Icons.Material.Filled.Save">
-                    @(_saving ? "Guardando…" : "Guardar")
-                </MudButton>
-            </div>
-        </EditForm>
-    </MudPaper>
-}
-
 <MudPaper Elevation="0" Class="content-card">
     <div class="section-heading table-toolbar">
         <div>
             <MudText Typo="Typo.h6">Directorio</MudText>
-            <MudText Typo="Typo.body2" Class="muted-text">@_users.Count usuarios visibles</MudText>
+            <MudText Typo="Typo.body2" Class="muted-text">@FilteredUsers.Count() usuarios visibles</MudText>
         </div>
         <MudTextField T="string" @bind-Value="_search" Placeholder="Buscar usuario…"
                       Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
@@ -126,11 +64,12 @@
                 <MudTd DataLabel="Estado"><MudChip T="string" Size="Size.Small" Color="@(context.active ? Color.Success : Color.Default)" Variant="Variant.Outlined">@(context.active ? "Activo" : "Inactivo")</MudChip></MudTd>
                 <MudTd DataLabel="Creado">@context.createdAt.ToLocalTime().ToString("d")</MudTd>
                 <MudTd DataLabel="Acciones" Class="actions-cell">
-                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" title="Editar usuario" OnClick="@(() => StartEdit(context))" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" title="Editar usuario" OnClick="@(() => EditUserAsync(context))" />
                     @if (context.active)
                     {
-                        <MudIconButton Icon="@Icons.Material.Filled.PersonOff" Color="Color.Error" title="Desactivar usuario" OnClick="@(() => DeactivateAsync(context))" />
+                        <MudIconButton Icon="@Icons.Material.Filled.PersonOff" Color="Color.Warning" title="Desactivar cuenta" OnClick="@(() => DeactivateAsync(context))" />
                     }
+                    <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Color="Color.Error" title="Eliminar usuario" OnClick="@(() => DeleteUserAsync(context))" />
                 </MudTd>
             </RowTemplate>
         </MudTable>
@@ -139,13 +78,9 @@
 
 @code {
     private IReadOnlyList<UserDto> _users = [];
-    private readonly UserForm _form = new();
     private string _search = string.Empty;
     private string? _error;
-    private int? _editingId;
     private bool _loading = true;
-    private bool _saving;
-    private bool _formOpen;
 
     private IEnumerable<UserDto> FilteredUsers => string.IsNullOrWhiteSpace(_search)
         ? _users
@@ -178,83 +113,84 @@
         }
     }
 
-    private void StartCreate()
+    private async Task CreateUserAsync()
     {
-        ResetForm();
-        _editingId = null;
-        _form.rol = "User";
-        _form.active = true;
-        _formOpen = true;
+        var result = await ShowUserDialogAsync("Crear usuario");
+        if (result is null)
+        {
+            return;
+        }
+
+        AddOrReplaceUser(result);
+        Snackbar.Add("El usuario se creó correctamente.", Severity.Success);
     }
 
-    private void StartEdit(UserDto user)
+    private async Task EditUserAsync(UserDto user)
     {
-        ResetForm();
-        _editingId = user.id;
-        _form.username = user.username;
-        _form.fullname = user.fullname;
-        _form.email = user.email;
-        _form.rol = user.rol;
-        _form.active = user.active;
-        _formOpen = true;
+        var result = await ShowUserDialogAsync("Editar usuario", user);
+        if (result is null)
+        {
+            return;
+        }
+
+        AddOrReplaceUser(result);
+        Snackbar.Add("Los cambios del usuario se guardaron.", Severity.Success);
     }
 
-    private async Task SaveAsync()
+    private async Task<UserDto?> ShowUserDialogAsync(string title, UserDto? user = null)
     {
-        _saving = true;
-        _error = null;
-        try
+        var parameters = new DialogParameters<UserDialog>
         {
-            if (_editingId is int id)
-            {
-                await Api.UpdateUserAsync(id, new UpdateUserRequest
-                {
-                    username = _form.username,
-                    fullname = _form.fullname,
-                    email = _form.email,
-                    rol = _form.rol,
-                    active = _form.active
-                });
-                Snackbar.Add("Los cambios del usuario se guardaron.", Severity.Success);
-            }
-            else
-            {
-                await Api.CreateUserAsync(new CreateUserRequest
-                {
-                    username = _form.username,
-                    fullname = _form.fullname,
-                    email = _form.email,
-                    password = _form.password,
-                    rol = _form.rol
-                });
-                Snackbar.Add("El usuario se creó correctamente.", Severity.Success);
-            }
+            { dialog => dialog.User, user }
+        };
+        var options = new DialogOptions
+        {
+            CloseButton = true,
+            BackdropClick = false,
+            FullWidth = true,
+            MaxWidth = MaxWidth.Medium
+        };
 
-            _formOpen = false;
-            await LoadAsync();
-        }
-        catch (ApiException ex)
-        {
-            _error = ex.Message;
-        }
-        catch (HttpRequestException)
-        {
-            _error = "No se pudo conectar con la API.";
-        }
-        finally
-        {
-            _saving = false;
-        }
+        var dialog = await DialogService.ShowAsync<UserDialog>(title, parameters, options);
+        var result = await dialog.Result;
+        return result is { Canceled: false, Data: UserDto updatedUser }
+            ? updatedUser
+            : null;
     }
 
     private async Task DeactivateAsync(UserDto user)
     {
+        var parameters = new DialogParameters<ConfirmDialog>
+        {
+            { dialog => dialog.Message, $"¿Deseas desactivar la cuenta de {user.fullname}? La cuenta quedará inactiva, pero seguirá en el sistema." },
+            { dialog => dialog.ConfirmText, "Desactivar cuenta" }
+        };
+        var confirmation = await DialogService.ShowAsync<ConfirmDialog>(
+            "Desactivar cuenta",
+            parameters,
+            new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true });
+        var result = await confirmation.Result;
+        if (result is not { Canceled: false, Data: true })
+        {
+            return;
+        }
+
         _error = null;
         try
         {
-            await Api.DeleteUserAsync(user.id);
+            await Api.DeactivateUserAsync(user);
+            AddOrReplaceUser(new UserDto
+            {
+                id = user.id,
+                username = user.username,
+                fullname = user.fullname,
+                email = user.email,
+                rol = user.rol,
+                active = false,
+                createdAt = user.createdAt,
+                updatedAt = user.updatedAt
+            });
             Snackbar.Add($"Se desactivó la cuenta de {user.fullname}.", Severity.Success);
-            await LoadAsync();
         }
         catch (ApiException ex)
         {
@@ -266,42 +202,57 @@
         }
     }
 
-    private void CancelForm()
+    private async Task DeleteUserAsync(UserDto user)
     {
-        _formOpen = false;
-        _editingId = null;
+        var parameters = new DialogParameters<ConfirmDialog>
+        {
+            { dialog => dialog.Message, $"¿Deseas eliminar a {user.fullname}? El usuario dejará de aparecer en el sistema; esta acción es un borrado lógico." },
+            { dialog => dialog.ConfirmText, "Eliminar usuario" }
+        };
+        var confirmation = await DialogService.ShowAsync<ConfirmDialog>(
+            "Eliminar usuario",
+            parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await confirmation.Result;
+        if (result is not { Canceled: false, Data: true })
+        {
+            return;
+        }
+
+        _error = null;
+        try
+        {
+            await Api.DeleteUserAsync(user.id);
+            _users = _users.Where(existing => existing.id != user.id).ToList();
+            Snackbar.Add($"Se eliminó el usuario {user.fullname}.", Severity.Success);
+        }
+        catch (ApiException ex)
+        {
+            _error = ex.Message;
+        }
+        catch (HttpRequestException)
+        {
+            _error = "No se pudo conectar con la API.";
+        }
     }
 
-    private void ResetForm()
+    private void AddOrReplaceUser(UserDto user)
     {
-        _form.username = string.Empty;
-        _form.fullname = string.Empty;
-        _form.email = string.Empty;
-        _form.password = string.Empty;
-        _form.rol = "User";
-        _form.active = true;
+        var users = _users.ToList();
+        var index = users.FindIndex(existing => existing.id == user.id);
+        if (index < 0)
+        {
+            users.Insert(0, user);
+        }
+        else
+        {
+            users[index] = user;
+        }
+
+        _users = users;
     }
 
     private static string Initial(string name) =>
         string.IsNullOrWhiteSpace(name) ? "?" : name[..1].ToUpperInvariant();
 
-    private sealed class UserForm
-    {
-        [Required(ErrorMessage = "El nombre de usuario es obligatorio."), StringLength(50, ErrorMessage = "El nombre de usuario no puede superar 50 caracteres.")]
-        public string username { get; set; } = string.Empty;
-
-        [Required(ErrorMessage = "El nombre completo es obligatorio."), StringLength(150, ErrorMessage = "El nombre completo no puede superar 150 caracteres.")]
-        public string fullname { get; set; } = string.Empty;
-
-        [Required(ErrorMessage = "El correo electrónico es obligatorio."), EmailAddress(ErrorMessage = "Ingresa un correo electrónico válido."), StringLength(150, ErrorMessage = "El correo no puede superar 150 caracteres.")]
-        public string email { get; set; } = string.Empty;
-
-        [Required(ErrorMessage = "La contraseña es obligatoria."), MinLength(8, ErrorMessage = "La contraseña debe tener al menos 8 caracteres.")]
-        public string password { get; set; } = string.Empty;
-
-        [Required(ErrorMessage = "El rol es obligatorio."), StringLength(50, ErrorMessage = "El rol no puede superar 50 caracteres.")]
-        public string rol { get; set; } = "User";
-
-        public bool active { get; set; } = true;
-    }
 }

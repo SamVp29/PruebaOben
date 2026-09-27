@@ -1,0 +1,196 @@
+@inject ApiClient Api
+
+<MudDialog>
+    <DialogContent>
+        <EditForm Model="_form" OnValidSubmit="SaveAsync">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+            <MudGrid Spacing="2">
+                <MudItem xs="12" sm="6">
+                    <MudTextField T="string" Label="Nombre de usuario" @bind-Value="_form.username"
+                                  For="@(() => _form.username)" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField T="string" Label="Nombre completo" @bind-Value="_form.fullname"
+                                  For="@(() => _form.fullname)" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField T="string" Label="Correo electrónico" @bind-Value="_form.email"
+                                  For="@(() => _form.email)" InputType="InputType.Email"
+                                  Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="string" Label="Rol" @bind-Value="_form.rol"
+                               Variant="Variant.Outlined" Margin="Margin.Dense">
+                        <MudSelectItem Value="@("User")">Usuario</MudSelectItem>
+                        <MudSelectItem Value="@("Admin")">Administrador</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                @if (User is null)
+                {
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="Contraseña inicial" @bind-Value="_form.password"
+                                      For="@(() => _form.password)" InputType="InputType.Password"
+                                      Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      HelperText="Usa al menos 8 caracteres." />
+                    </MudItem>
+                }
+                else
+                {
+                    <MudItem xs="12">
+                        <MudSwitch T="bool" @bind-Value="_form.active" Color="Color.Success">
+                            Cuenta activa
+                        </MudSwitch>
+                    </MudItem>
+                }
+            </MudGrid>
+
+            @if (!string.IsNullOrWhiteSpace(_error))
+            {
+                <MudAlert Severity="Severity.Error" Variant="Variant.Outlined" Class="mt-4">@_error</MudAlert>
+            }
+
+            <div class="form-actions">
+                <MudButton Variant="Variant.Text" OnClick="Cancel" Disabled="_saving">Cancelar</MudButton>
+                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
+                           Disabled="_saving" StartIcon="@Icons.Material.Filled.Save">
+                    @(_saving ? "Guardando…" : "Guardar")
+                </MudButton>
+            </div>
+        </EditForm>
+    </DialogContent>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter]
+    public UserDto? User { get; set; }
+
+    private readonly UserForm _form = new();
+    private bool _saving;
+    private string? _error;
+
+    protected override void OnInitialized()
+    {
+        _form.IsNewUser = User is null;
+        if (User is null)
+        {
+            return;
+        }
+
+        _form.username = User.username;
+        _form.fullname = User.fullname;
+        _form.email = User.email;
+        _form.rol = User.rol;
+        _form.active = User.active;
+    }
+
+    private async Task SaveAsync()
+    {
+        _saving = true;
+        _error = null;
+        try
+        {
+            UserDto result;
+            if (User is null)
+            {
+                result = await Api.CreateUserAsync(new CreateUserRequest
+                {
+                    username = _form.username,
+                    fullname = _form.fullname,
+                    email = _form.email,
+                    password = _form.password,
+                    rol = _form.rol
+                });
+            }
+            else
+            {
+                await Api.UpdateUserAsync(User.id, new UpdateUserRequest
+                {
+                    username = _form.username,
+                    fullname = _form.fullname,
+                    email = _form.email,
+                    rol = _form.rol,
+                    active = _form.active
+                });
+
+                result = new UserDto
+                {
+                    id = User.id,
+                    username = _form.username,
+                    fullname = _form.fullname,
+                    email = _form.email,
+                    rol = _form.rol,
+                    active = _form.active,
+                    createdAt = User.createdAt,
+                    updatedAt = User.updatedAt
+                };
+            }
+
+            MudDialog.Close(DialogResult.Ok(result));
+        }
+        catch (ApiException ex)
+        {
+            _error = ex.Message;
+        }
+        catch (HttpRequestException)
+        {
+            _error = "No se pudo conectar con la API.";
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private sealed class UserForm : IValidatableObject
+    {
+        [Required(ErrorMessage = "El nombre de usuario es obligatorio.")]
+        [StringLength(50, ErrorMessage = "El nombre de usuario no puede superar 50 caracteres.")]
+        public string username { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "El nombre completo es obligatorio.")]
+        [StringLength(150, ErrorMessage = "El nombre completo no puede superar 150 caracteres.")]
+        public string fullname { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "El correo electrónico es obligatorio.")]
+        [EmailAddress(ErrorMessage = "Ingresa un correo electrónico válido.")]
+        [StringLength(150, ErrorMessage = "El correo no puede superar 150 caracteres.")]
+        public string email { get; set; } = string.Empty;
+
+        public string password { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "El rol es obligatorio.")]
+        [StringLength(50, ErrorMessage = "El rol no puede superar 50 caracteres.")]
+        public string rol { get; set; } = "User";
+
+        public bool active { get; set; } = true;
+
+        public bool IsNewUser { get; set; }
+
+        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+        {
+            if (!IsNewUser)
+            {
+                yield break;
+            }
+
+            if (string.IsNullOrWhiteSpace(password))
+            {
+                yield return new ValidationResult(
+                    "La contraseña es obligatoria.",
+                    [nameof(password)]);
+            }
+            else if (password.Length < 8)
+            {
+                yield return new ValidationResult(
+                    "La contraseña debe tener al menos 8 caracteres.",
+                    [nameof(password)]);
+            }
+        }
+    }
+}
