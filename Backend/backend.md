@@ -135,6 +135,7 @@ Métodos implementados:
 - CreateAsync
 - UpdateAsync
 - DeleteAsync
+- PermanentlyDeleteAsync
 
 Utiliza:
 - SqlConnection.
@@ -173,6 +174,11 @@ Establece:
 active = 0
 deletedAt = SYSDATETIME()
 UpdatedAt = SYSDATETIME()
+
+PermanentlyDeleteAsync: elimina físicamente por ID en una ruta protegida
+para Admin. El trigger registra id, username y fullname, excluyendo email
+y passwordHash. La FK auditLogs.userId usa ON DELETE SET NULL para
+preservar el historial anterior.
 
 ¿Por qué borrado lógico?
 Porque permite conservar el registro y su historial de auditoría,
@@ -287,6 +293,11 @@ Actualiza un usuario.
 
 DELETE /api/users/{id}
 Realiza la eliminación lógica de un usuario.
+
+DELETE /api/users/{id}/permanent
+Elimina físicamente al usuario. Solo lo puede ejecutar un usuario con
+rol Admin. La auditoría conserva su ID, username y fullname y mantiene
+la identidad del actor; no conserva correo ni passwordHash.
 
 GET /api/audit?page=1&pageSize=50
 Obtiene una página del historial de auditoría (ver AuditController).
@@ -602,14 +613,12 @@ HTTP Request -> Controller -> Application Service -> IUserRepository -> UserRepo
     -> SqlConnection / SqlCommand -> SQL Server -> Trigger -> auditLogs
 
 El repositorio construye y ejecuta SQL parametrizado directamente con
-Microsoft.Data.SqlClient; no interviene un ORM.
-
-Los triggers pueden escribir en auditLogs, pero el backend todavía no
-establece `SESSION_CONTEXT('UserId')` en la conexión antes de las
-operaciones. Por tanto, `cambioRealizado` no queda asociado al usuario
-autenticado desde este backend hasta que se implemente esa integración.
-El endpoint de consulta sí está implementado; los registros existentes
-con `cambioRealizado` NULL seguirán mostrándose con ese valor.
+Microsoft.Data.SqlClient; no interviene un ORM. Antes de cada escritura,
+establece `SESSION_CONTEXT('UserId')` con el ID del claim `sub` del JWT
+en la misma conexión SQL que ejecuta el INSERT, UPDATE o DELETE. El
+trigger usa ese valor para llenar `cambioRealizado`. Los registros
+anteriores con `cambioRealizado` NULL no se pueden atribuir
+retroactivamente.
 
 8. CQRS
 -------
@@ -631,10 +640,17 @@ de lectura y escritura agregaría complejidad sin una necesidad clara.
 - Implementado: LoginDto valida email requerido/formato y contraseña
   requerida mediante DataAnnotations.
 - Implementado: borrado lógico mediante active y deletedAt.
+- Implementado: activar/desactivar con PUT, sin cambiar deletedAt.
+- Implementado: eliminación física solo para rol Admin.
+- Implementado: auditoría física guarda id, username y fullname del
+  usuario eliminado; no guarda correo ni passwordHash.
+- Implementado: FK de auditLogs con ON DELETE SET NULL para conservar el
+  historial sin mantener una FK al usuario eliminado.
 - Parcial: CreateUserDto y UpdateUserDto no tienen DataAnnotations;
   solamente se comprueba el email duplicado al crear en UserService.
-- Pendiente: establecer SESSION_CONTEXT desde C# para que la auditoría
-  identifique al actor autenticado.
+- La migración `Database/Migrations/20260926_UserPhysicalDeleteAudit.sql`
+  se aplicó a la base local. Debe aplicarse en otros entornos antes de
+  habilitar la eliminación física.
 
 10. MAPEO ENTITY -> DTO
 -----------------------
@@ -741,17 +757,18 @@ API
 [OK] ASP.NET Core Web API.
 [OK] OpenAPI/Swagger.
 [OK] Swagger UI.
-[OK] UsersController y sus cinco endpoints.
+[OK] UsersController y sus seis endpoints.
 [OK] AuthController y POST /api/auth/login.
 [OK] AuditController y GET /api/audit con paginación.
 [OK] Firma y validación JWT; UsersController requiere [Authorize].
-[ ] SESSION_CONTEXT desde C#.
+[OK] Eliminación física restringida a rol Admin.
+[OK] SESSION_CONTEXT desde C# en las operaciones de escritura de usuarios.
 
 PRUEBAS
 [ ] Probar CRUD desde Swagger.
 [ ] Probar validaciones.
 [ ] Probar autenticación.
-[ ] Probar auditoría desde C#.
+[EN PROCESO] Verificar actor en eventos SQL usando la migración local.
 
 BUILD
 [OK] `dotnet build Backend/PruebaOben.Api/PruebaOben.Api.csproj`
@@ -767,8 +784,8 @@ pageSize=2 devolvieron 200, totalCount=12 e items=2.
    credencial Bearer al llamar cada ruta protegida.
 2. Probar CRUD y confirmar los registros creados por los triggers en
    auditLogs.
-3. Integrar `SESSION_CONTEXT('UserId')` en la misma conexión SQL que
-   ejecuta cada operación, y verificar `cambioRealizado`.
+3. Aplicar la migración física-auditoría en la base y probar los
+   eventos INSERT/UPDATE/DELETE con el actor en `cambioRealizado`.
 4. Completar validación de CreateUserDto/UpdateUserDto y decidir cómo
    traducir violaciones UNIQUE a 409 Conflict.
 5. Asignar `updatedAt` en `MapToResponse` si debe mostrarse al cliente.

@@ -36,4 +36,5 @@ CREATE TABLE [dbo].[auditLogs]
     CONSTRAINT [FK_AuditLogs_User]
         FOREIGN KEY ([userId])
         REFERENCES [dbo].[users]([id])
+        ON DELETE SET NULL
 );

@@ -272,8 +272,10 @@ utilizados en esta etapa.
 [OK] Swagger funcionando.
 [OK] API de gestión de usuarios, autenticación JWT y consulta paginada
 de auditoría implementadas.
-[EN PROCESO] Pruebas integradas de extremo a extremo en Web/dispositivo
-y asociación del actor de auditoría mediante SESSION_CONTEXT.
+[OK] Prueba de API/SQL local: CRUD de usuarios, actores de auditoría y
+eliminación física auditable; migración aplicada a PruebaOben local.
+[EN PROCESO] Prueba de flujo de login/CRUD desde Web con credenciales
+de demostración y prueba Android en emulador/dispositivo.
 [OK] Frontend compartido implementado para Web y MAUI con MudBlazor.
 [OK] Hosts Web, MAUI Windows y Android compilan; APK Android generado.
 [EN PROCESO] Configuración de URL HTTPS y firma Release definitivas

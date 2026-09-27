@@ -2,6 +2,7 @@
 using PruebaOben.Application.DTOs;
 using PruebaOben.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 namespace PruebaOben.Api.Controllers;
 
@@ -45,9 +46,14 @@ public class UsersController : ControllerBase
     public async Task<ActionResult<UserResponseDto>> Create(
         CreateUserDto dto)
     {
+        if (!TryGetActorId(out var actorId))
+        {
+            return Unauthorized();
+        }
+
         try
         {
-            var user = await _userService.CreateAsync(dto);
+            var user = await _userService.CreateAsync(dto, actorId);
 
             return CreatedAtAction(
                 nameof(GetById),
@@ -70,7 +76,12 @@ public class UsersController : ControllerBase
         int id,
         UpdateUserDto dto)
     {
-        var updated = await _userService.UpdateAsync(id, dto);
+        if (!TryGetActorId(out var actorId))
+        {
+            return Unauthorized();
+        }
+
+        var updated = await _userService.UpdateAsync(id, dto, actorId);
 
         if (!updated)
         {
@@ -84,7 +95,12 @@ public class UsersController : ControllerBase
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
     {
-        var deleted = await _userService.DeleteAsync(id);
+        if (!TryGetActorId(out var actorId))
+        {
+            return Unauthorized();
+        }
+
+        var deleted = await _userService.DeleteAsync(id, actorId);
 
         if (!deleted)
         {
@@ -92,5 +108,31 @@ public class UsersController : ControllerBase
         }
 
         return NoContent();
+    }
+
+    // DELETE: api/users/5/permanent
+    [HttpDelete("{id:int}/permanent")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> PermanentlyDelete(int id)
+    {
+        if (!TryGetActorId(out var actorId))
+        {
+            return Unauthorized();
+        }
+
+        var deleted = await _userService.PermanentlyDeleteAsync(id, actorId);
+        if (!deleted)
+        {
+            return NotFound();
+        }
+
+        return NoContent();
+    }
+
+    private bool TryGetActorId(out int actorId)
+    {
+        var actorClaim = User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? User.FindFirstValue("sub");
+        return int.TryParse(actorClaim, out actorId);
     }
 }

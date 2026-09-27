@@ -10,10 +10,12 @@ public interface IUserRepository
 
     Task<User?> GetByEmailAsync(string email);
 
-    Task<User> CreateAsync(User user);
+    Task<User> CreateAsync(User user, int actorId);
 
-    Task<bool> UpdateAsync(User user);
+    Task<bool> UpdateAsync(User user, int actorId);
 
-    Task<bool> DeleteAsync(int id);
+    Task<bool> DeleteAsync(int id, int actorId);
+
+    Task<bool> PermanentlyDeleteAsync(int id, int actorId);
 
 }

@@ -17,16 +17,20 @@ BEGIN
         [cambioRealizado]
     )
     SELECT
-        d.[id],                         -- Usuario eliminado
-        N'DELETE',                     -- Acción
-        N'users',                       -- Entidad
-        d.[id],                         -- ID del usuario eliminado
-        NULL,                           -- No corresponde a un campo específico
-        NULL,                           -- No almacenamos los datos anteriores
-        NULL,                           -- No hay valor nuevo
-        TRY_CONVERT(
-            INT,
-            SESSION_CONTEXT(N'UserId')
-        )                              -- Usuario que realizó la acción
-    FROM deleted AS d;
+        NULL,
+        N'DELETE',
+        N'users',
+        d.[id],
+        datosEliminados.[nombreCampo],
+        datosEliminados.[valorAnterior],
+        NULL,
+        TRY_CONVERT(INT, SESSION_CONTEXT(N'UserId'))
+    FROM deleted AS d
+    CROSS APPLY
+    (
+        VALUES
+            (N'id', CONVERT(NVARCHAR(MAX), d.[id])),
+            (N'username', CONVERT(NVARCHAR(MAX), d.[username])),
+            (N'fullname', CONVERT(NVARCHAR(MAX), d.[fullname]))
+    ) AS datosEliminados ([nombreCampo], [valorAnterior]);
 END;

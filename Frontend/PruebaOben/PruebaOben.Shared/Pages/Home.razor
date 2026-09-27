@@ -65,7 +65,7 @@ else if (!string.IsNullOrWhiteSpace(_error))
             <RowTemplate>
                 <MudTd DataLabel="Acción"><MudChip T="string" Size="Size.Small" Color="@ActionColor(context.accion)" Variant="Variant.Outlined">@context.accion</MudChip></MudTd>
                 <MudTd DataLabel="Campo">@(context.nombreCampo ?? context.entidad)</MudTd>
-                <MudTd DataLabel="Usuario">@(context.userId?.ToString() ?? "—")</MudTd>
+                <MudTd DataLabel="Usuario">@(AffectedUserId(context)?.ToString() ?? "—")</MudTd>
                 <MudTd DataLabel="Fecha">@context.cambioAt.ToLocalTime().ToString("g")</MudTd>
             </RowTemplate>
         </MudTable>
@@ -115,4 +115,7 @@ else if (!string.IsNullOrWhiteSpace(_error))
         "DELETE" => Color.Error,
         _ => Color.Info
     };
+
+    private static int? AffectedUserId(AuditLogDto audit) =>
+        audit.userId ?? (audit.entidad == "users" ? audit.entidadId : null);
 }

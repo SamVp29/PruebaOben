@@ -65,11 +65,25 @@
                 <MudTd DataLabel="Creado">@context.createdAt.ToLocalTime().ToString("d")</MudTd>
                 <MudTd DataLabel="Acciones" Class="actions-cell">
                     <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" title="Editar usuario" OnClick="@(() => EditUserAsync(context))" />
-                    @if (context.active)
-                    {
-                        <MudIconButton Icon="@Icons.Material.Filled.PersonOff" Color="Color.Warning" title="Desactivar cuenta" OnClick="@(() => DeactivateAsync(context))" />
-                    }
-                    <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Color="Color.Error" title="Eliminar usuario" OnClick="@(() => DeleteUserAsync(context))" />
+                    <MudMenu Icon="@Icons.Material.Filled.MoreVert" title="Más acciones" Dense="true">
+                        <MudMenuItem Icon="@(context.active ? Icons.Material.Filled.PersonOff : Icons.Material.Filled.Person)"
+                                     OnClick="@(() => SetActiveAsync(context, !context.active))">
+                            @(context.active ? "Desactivar cuenta" : "Activar cuenta")
+                        </MudMenuItem>
+                        <MudDivider />
+                        <MudMenuItem Icon="@Icons.Material.Filled.DeleteOutline"
+                                     OnClick="@(() => DeleteUserAsync(context))">
+                            Eliminar lógicamente
+                        </MudMenuItem>
+                        <AuthorizeView Roles="Admin">
+                            <Authorized Context="authorizationState">
+                                <MudMenuItem Icon="@Icons.Material.Filled.DeleteForever"
+                                             OnClick="@(() => PermanentlyDeleteUserAsync(context))">
+                                    Eliminar permanentemente
+                                </MudMenuItem>
+                            </Authorized>
+                        </AuthorizeView>
+                    </MudMenu>
                 </MudTd>
             </RowTemplate>
         </MudTable>
@@ -158,19 +172,13 @@
             : null;
     }
 
-    private async Task DeactivateAsync(UserDto user)
+    private async Task SetActiveAsync(UserDto user, bool active)
     {
-        var parameters = new DialogParameters<ConfirmDialog>
-        {
-            { dialog => dialog.Message, $"¿Deseas desactivar la cuenta de {user.fullname}? La cuenta quedará inactiva, pero seguirá en el sistema." },
-            { dialog => dialog.ConfirmText, "Desactivar cuenta" }
-        };
-        var confirmation = await DialogService.ShowAsync<ConfirmDialog>(
+        if (!active && !await ConfirmAsync(
             "Desactivar cuenta",
-            parameters,
-            new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true });
-        var result = await confirmation.Result;
-        if (result is not { Canceled: false, Data: true })
+            $"La cuenta de {user.fullname} quedará inactiva, pero sus datos se conservarán.",
+            "Desactivar cuenta",
+            MaxWidth.ExtraSmall))
         {
             return;
         }
@@ -178,19 +186,13 @@
         _error = null;
         try
         {
-            await Api.DeactivateUserAsync(user);
-            AddOrReplaceUser(new UserDto
-            {
-                id = user.id,
-                username = user.username,
-                fullname = user.fullname,
-                email = user.email,
-                rol = user.rol,
-                active = false,
-                createdAt = user.createdAt,
-                updatedAt = user.updatedAt
-            });
-            Snackbar.Add($"Se desactivó la cuenta de {user.fullname}.", Severity.Success);
+            await Api.SetUserActiveAsync(user, active);
+            AddOrReplaceUser(CopyUser(user, active));
+            Snackbar.Add(
+                active
+                    ? $"Se activó la cuenta de {user.fullname}."
+                    : $"Se desactivó la cuenta de {user.fullname}.",
+                Severity.Success);
         }
         catch (ApiException ex)
         {
@@ -204,17 +206,11 @@
 
     private async Task DeleteUserAsync(UserDto user)
     {
-        var parameters = new DialogParameters<ConfirmDialog>
-        {
-            { dialog => dialog.Message, $"¿Deseas eliminar a {user.fullname}? El usuario dejará de aparecer en el sistema; esta acción es un borrado lógico." },
-            { dialog => dialog.ConfirmText, "Eliminar usuario" }
-        };
-        var confirmation = await DialogService.ShowAsync<ConfirmDialog>(
-            "Eliminar usuario",
-            parameters,
-            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
-        var result = await confirmation.Result;
-        if (result is not { Canceled: false, Data: true })
+        if (!await ConfirmAsync(
+            "Eliminar lógicamente",
+            $"El usuario {user.fullname} dejará de aparecer en el sistema. Sus datos se conservarán como borrado lógico.",
+            "Eliminar lógicamente",
+            MaxWidth.Small))
         {
             return;
         }
@@ -223,8 +219,8 @@
         try
         {
             await Api.DeleteUserAsync(user.id);
-            _users = _users.Where(existing => existing.id != user.id).ToList();
-            Snackbar.Add($"Se eliminó el usuario {user.fullname}.", Severity.Success);
+            RemoveUser(user.id);
+            Snackbar.Add($"Se eliminó lógicamente a {user.fullname}.", Severity.Success);
         }
         catch (ApiException ex)
         {
@@ -235,6 +231,69 @@
             _error = "No se pudo conectar con la API.";
         }
     }
+
+    private async Task PermanentlyDeleteUserAsync(UserDto user)
+    {
+        if (!await ConfirmAsync(
+            "Eliminar permanentemente",
+            $"Se borrarán definitivamente los datos de {user.fullname}. Solo quedará en auditoría su ID, username y nombre completo. Esta acción no se puede deshacer.",
+            "Eliminar permanentemente",
+            MaxWidth.Small))
+        {
+            return;
+        }
+
+        _error = null;
+        try
+        {
+            await Api.PermanentlyDeleteUserAsync(user.id);
+            RemoveUser(user.id);
+            Snackbar.Add($"Se eliminó permanentemente a {user.fullname}.", Severity.Success);
+        }
+        catch (ApiException ex)
+        {
+            _error = ex.Message;
+        }
+        catch (HttpRequestException)
+        {
+            _error = "No se pudo conectar con la API.";
+        }
+    }
+
+    private async Task<bool> ConfirmAsync(
+        string title,
+        string message,
+        string confirmText,
+        MaxWidth maxWidth)
+    {
+        var parameters = new DialogParameters<ConfirmDialog>
+        {
+            { dialog => dialog.Message, message },
+            { dialog => dialog.ConfirmText, confirmText }
+        };
+        var confirmation = await DialogService.ShowAsync<ConfirmDialog>(
+            title,
+            parameters,
+            new DialogOptions { MaxWidth = maxWidth, FullWidth = true });
+        var result = await confirmation.Result;
+        return result is { Canceled: false, Data: true };
+    }
+
+    private static UserDto CopyUser(UserDto user, bool active) =>
+        new()
+        {
+            id = user.id,
+            username = user.username,
+            fullname = user.fullname,
+            email = user.email,
+            rol = user.rol,
+            active = active,
+            createdAt = user.createdAt,
+            updatedAt = user.updatedAt
+        };
+
+    private void RemoveUser(int userId) =>
+        _users = _users.Where(user => user.id != userId).ToList();
 
     private void AddOrReplaceUser(UserDto user)
     {

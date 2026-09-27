@@ -57,7 +57,7 @@ public class UserService : IUserService
     // CREATE
     // ============================================================
 
-    public async Task<UserResponseDto> CreateAsync(CreateUserDto dto)
+    public async Task<UserResponseDto> CreateAsync(CreateUserDto dto, int actorId)
     {
         // Validamos que el correo no esté registrado.
         var existingUser = await _repository.GetByEmailAsync(dto.email);
@@ -84,7 +84,7 @@ public class UserService : IUserService
         };
 
         // Guardamos la entidad mediante el repositorio.
-        var createdUser = await _repository.CreateAsync(user);
+        var createdUser = await _repository.CreateAsync(user, actorId);
 
         // Devolvemos únicamente los datos permitidos para la respuesta.
         return MapToResponse(createdUser);
@@ -94,7 +94,7 @@ public class UserService : IUserService
     // UPDATE
     // ============================================================
 
-    public async Task<bool> UpdateAsync(int id, UpdateUserDto dto)
+    public async Task<bool> UpdateAsync(int id, UpdateUserDto dto, int actorId)
     {
         // Primero verificamos que el usuario exista.
         var user = await _repository.GetByIdAsync(id);
@@ -113,18 +113,23 @@ public class UserService : IUserService
         user.active = dto.active;
 
         // El repositorio se encarga de persistir los cambios.
-        return await _repository.UpdateAsync(user);
+        return await _repository.UpdateAsync(user, actorId);
     }
 
     // ============================================================
     // DELETE
     // ============================================================
 
-    public async Task<bool> DeleteAsync(int id)
+    public async Task<bool> DeleteAsync(int id, int actorId)
     {
         // El repositorio realiza una eliminación lógica.
         // No se elimina físicamente el registro de la base de datos.
-        return await _repository.DeleteAsync(id);
+        return await _repository.DeleteAsync(id, actorId);
+    }
+
+    public async Task<bool> PermanentlyDeleteAsync(int id, int actorId)
+    {
+        return await _repository.PermanentlyDeleteAsync(id, actorId);
     }
 
     // ============================================================

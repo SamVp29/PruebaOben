@@ -117,10 +117,14 @@ USUARIOS
 - DELETE /api/users/{id} para borrado lógico.
 - Crear y editar se realizan en un diálogo modal; desactivar pide
   confirmación.
+- El menú de acciones ofrece activar/desactivar, eliminar lógicamente
+  y, solo para el rol Admin, eliminar permanentemente.
 - "Desactivar cuenta" usa PUT /api/users/{id} con active=false; la cuenta
   sigue visible como inactiva y deletedAt no se modifica.
 - "Eliminar usuario" llama a DELETE /api/users/{id}; el Backend realiza
   el borrado lógico y la interfaz lo retira del listado.
+- "Eliminar permanentemente" requiere rol Admin y una confirmación que
+  advierte que solo quedarán en auditoría ID, username y fullname.
 - Después de crear, editar o desactivar, la pantalla actualiza solo el
   usuario afectado en memoria; al eliminar, lo retira del listado. No
   vuelve a cargar la lista ni navega para refrescarla.
@@ -139,9 +143,11 @@ AUDITORÍA
 - Presenta acción, entidad/campo, usuario afectado, actor, valores y
   fecha.
 - El actor/usuario se muestra como ID porque auditLogs no guarda una
-  copia histórica de sus nombres. Si cambioRealizado es NULL, se indica
-  "No informado"; la integración Backend de SESSION_CONTEXT está
-  pendiente.
+  copia histórica general de sus nombres. Los eventos de eliminación
+  física sí conservan ID, username y fullname. Si cambioRealizado es
+  NULL, se indica "No informado"; las filas históricas anteriores no
+  tienen actor retroactivo. Para auditoría de un usuario borrado
+  físicamente, la interfaz usa entidadId como ID afectado.
 - La ruta permite cualquier usuario autenticado, según la decisión
   tomada para el alcance actual.
 
@@ -239,12 +245,16 @@ emulador o teléfono Android.
      listado de usuarios y auditoría.
 [OK] API real probada aparte: GET /api/audit devolvió datos de SQL
      Server con autenticación.
+[OK] API real y SQL Server: creación, actualización, borrado lógico y
+     eliminación física sintéticos con cambioRealizado por actor.
+[OK] Rol User recibe 403 al intentar eliminación física.
+[OK] Filas de prueba eliminadas tras verificar la auditoría.
+[OK] La migración FK SET NULL y el trigger físico están aplicados en la
+     base local PruebaOben.
 [ ] No hay emulador ni adb disponibles en este entorno; no se pudo
      instalar/ejecutar el APK ni probar un dispositivo físico.
 [ ] Falta probar el flujo completo de login/CRUD del Frontend contra la
      API real con credenciales de demostración.
-[ ] Falta establecer SESSION_CONTEXT desde Backend para identificar al
-     actor de cambios.
 
 9. LIMITACIONES CONOCIDAS
 -------------------------
@@ -255,8 +265,8 @@ emulador o teléfono Android.
   mismo origen podría acceder a ese almacenamiento.
 - La lista de auditoría contiene valores de campos, y el API permite
   leerlos a cualquier usuario autenticado.
-- El Frontend no oculta funciones por rol porque el Backend actual no
-  implementa autorización diferenciada por rol.
+- La eliminación física solo se muestra y permite para rol Admin. Las
+  demás operaciones conservan el alcance de autorización existente.
 - El endpoint de usuarios no devuelve updatedAt correctamente todavía;
   el resumen no depende de ese campo.
 - No existe restauración de borrado lógico ni cambio de contraseña en
@@ -295,5 +305,8 @@ recursos; el cliente no es una frontera de seguridad."
 
 ¿Cómo maneja la auditoría los nombres del actor?
 "El esquema guarda IDs, no nombres históricos. La interfaz presenta
-esos IDs. Para atribuir el actor falta que Backend establezca
-SESSION_CONTEXT en la misma conexión que modifica SQL."
+esos IDs. El API toma el ID del claim sub del JWT, lo establece en
+SESSION_CONTEXT en la misma conexión de escritura y el trigger lo guarda
+en cambioRealizado. Para una eliminación física también conserva el ID,
+username y nombre completo del usuario eliminado, pero no su correo ni
+su contraseña."

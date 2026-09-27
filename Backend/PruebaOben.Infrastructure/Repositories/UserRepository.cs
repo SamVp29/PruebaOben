@@ -181,11 +181,13 @@ public class UserRepository : IUserRepository
                 : reader.GetDateTime(reader.GetOrdinal("deletedAt"))
         };
     }
-    public async Task<User> CreateAsync(User user)
+    public async Task<User> CreateAsync(User user, int actorId)
     {
         using var connection = _connectionFactory.CreateConnection();
 
         const string sql = """
+        EXEC sys.sp_set_session_context @key = N'UserId', @value = @actorId;
+
         DECLARE @Inserted TABLE
         (
             id INT,
@@ -236,6 +238,7 @@ public class UserRepository : IUserRepository
 
         using var command = new SqlCommand(sql, connection);
 
+        command.Parameters.Add("@actorId", SqlDbType.Int).Value = actorId;
         command.Parameters.Add("@username", SqlDbType.NVarChar, 50).Value = user.username;
         command.Parameters.Add("@fullname", SqlDbType.NVarChar, 150).Value = user.fullname;
         command.Parameters.Add("@email", SqlDbType.NVarChar, 150).Value = user.email;
@@ -273,11 +276,13 @@ public class UserRepository : IUserRepository
                 : reader.GetDateTime(reader.GetOrdinal("deletedAt"))
         };
     }
-    public async Task<bool> UpdateAsync(User user)
+    public async Task<bool> UpdateAsync(User user, int actorId)
     {
         using var connection = _connectionFactory.CreateConnection();
 
         const string sql = """
+        EXEC sys.sp_set_session_context @key = N'UserId', @value = @actorId;
+
         UPDATE dbo.users
         SET
             username = @username,
@@ -292,6 +297,7 @@ public class UserRepository : IUserRepository
 
         using var command = new SqlCommand(sql, connection);
 
+        command.Parameters.Add("@actorId", SqlDbType.Int).Value = actorId;
         command.Parameters.Add("@id", SqlDbType.Int).Value = user.id;
         command.Parameters.Add("@username", SqlDbType.NVarChar, 50).Value = user.username;
         command.Parameters.Add("@fullname", SqlDbType.NVarChar, 150).Value = user.fullname;
@@ -306,11 +312,13 @@ public class UserRepository : IUserRepository
         return rowsAffected > 0;
     }
 
-    public async Task<bool> DeleteAsync(int id)
+    public async Task<bool> DeleteAsync(int id, int actorId)
     {
         using var connection = _connectionFactory.CreateConnection();
 
         const string sql = """
+        EXEC sys.sp_set_session_context @key = N'UserId', @value = @actorId;
+
         UPDATE dbo.users
         SET
             active = 0,
@@ -322,6 +330,7 @@ public class UserRepository : IUserRepository
 
         using var command = new SqlCommand(sql, connection);
 
+        command.Parameters.Add("@actorId", SqlDbType.Int).Value = actorId;
         command.Parameters.Add("@id", SqlDbType.Int).Value = id;
 
         await connection.OpenAsync();
@@ -330,5 +339,23 @@ public class UserRepository : IUserRepository
 
         return rowsAffected > 0;
     }
-}
 
+    public async Task<bool> PermanentlyDeleteAsync(int id, int actorId)
+    {
+        using var connection = _connectionFactory.CreateConnection();
+
+        const string sql = """
+        EXEC sys.sp_set_session_context @key = N'UserId', @value = @actorId;
+
+        DELETE FROM dbo.users
+        WHERE id = @id;
+        """;
+
+        using var command = new SqlCommand(sql, connection);
+        command.Parameters.Add("@actorId", SqlDbType.Int).Value = actorId;
+        command.Parameters.Add("@id", SqlDbType.Int).Value = id;
+
+        await connection.OpenAsync();
+        return await command.ExecuteNonQueryAsync() > 0;
+    }
+}

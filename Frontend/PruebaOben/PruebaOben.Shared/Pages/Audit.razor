@@ -63,7 +63,7 @@
                         <MudText Typo="Typo.caption" Class="muted-text">@context.nombreCampo</MudText>
                     }
                 </MudTd>
-                <MudTd DataLabel="Usuario afectado">@(context.userId?.ToString() ?? "—")</MudTd>
+                <MudTd DataLabel="Usuario afectado">@(AffectedUserId(context)?.ToString() ?? "—")</MudTd>
                 <MudTd DataLabel="Actor">@(context.cambioRealizado?.ToString() ?? "No informado")</MudTd>
                 <MudTd DataLabel="Valores">
                     @if (context.nombreCampo is not null)
@@ -134,4 +134,7 @@
         "DELETE" => Color.Error,
         _ => Color.Info
     };
+
+    private static int? AffectedUserId(AuditLogDto audit) =>
+        audit.userId ?? (audit.entidad == "users" ? audit.entidadId : null);
 }

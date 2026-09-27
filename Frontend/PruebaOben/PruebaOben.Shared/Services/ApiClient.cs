@@ -40,18 +40,21 @@ public sealed class ApiClient(
     public async Task UpdateUserAsync(int id, UpdateUserRequest request) =>
         await SendAsync(HttpMethod.Put, $"api/users/{id}", request);
 
-    public async Task DeactivateUserAsync(UserDto user) =>
+    public async Task SetUserActiveAsync(UserDto user, bool active) =>
         await UpdateUserAsync(user.id, new UpdateUserRequest
         {
             username = user.username,
             fullname = user.fullname,
             email = user.email,
             rol = user.rol,
-            active = false
+            active = active
         });
 
     public async Task DeleteUserAsync(int id) =>
         await SendAsync(HttpMethod.Delete, $"api/users/{id}");
+
+    public async Task PermanentlyDeleteUserAsync(int id) =>
+        await SendAsync(HttpMethod.Delete, $"api/users/{id}/permanent");
 
     public async Task<AuditPageDto> GetAuditAsync(int page, int pageSize) =>
         await SendAsync<AuditPageDto>(

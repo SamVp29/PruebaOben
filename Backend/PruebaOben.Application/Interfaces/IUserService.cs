@@ -11,9 +11,11 @@ public interface IUserService
 
     Task<UserResponseDto?> GetByIdAsync(int id);
 
-    Task<UserResponseDto> CreateAsync(CreateUserDto dto);
+    Task<UserResponseDto> CreateAsync(CreateUserDto dto, int actorId);
 
-    Task<bool> UpdateAsync(int id, UpdateUserDto dto);
+    Task<bool> UpdateAsync(int id, UpdateUserDto dto, int actorId);
 
-    Task<bool> DeleteAsync(int id);
+    Task<bool> DeleteAsync(int id, int actorId);
+
+    Task<bool> PermanentlyDeleteAsync(int id, int actorId);
 }
