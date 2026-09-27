@@ -58,7 +58,8 @@ else if (!string.IsNullOrWhiteSpace(_error))
     }
     else
     {
-        <MudTable Items="_recentAudit" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="0" Class="data-table">
+        <MudTable Items="_recentAudit" Dense="true" Hover="true" Breakpoint="Breakpoint.None"
+                  Elevation="0" Class="data-table summary-audit-table">
             <HeaderContent>
                 <MudTh>Acción</MudTh><MudTh>Campo</MudTh><MudTh>Usuario</MudTh><MudTh>Fecha</MudTh>
             </HeaderContent>

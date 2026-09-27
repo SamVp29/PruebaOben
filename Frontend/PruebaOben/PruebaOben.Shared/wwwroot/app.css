@@ -171,6 +171,10 @@ a {
     overflow-x: auto;
 }
 
+.summary-audit-table .mud-table-root {
+    min-width: 520px;
+}
+
 .data-table .mud-table-head .mud-table-cell {
     color: var(--app-muted);
     font-size: .75rem;

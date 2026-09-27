@@ -106,6 +106,9 @@ RESUMEN
 - Cuenta los activos usando el campo active.
 - Muestra el total de eventos desde GET /api/audit y los cinco eventos
   más recientes.
+- La actividad reciente conserva una fila de encabezados y filas de datos
+  en Web y MAUI; en pantallas estrechas la tabla permite desplazamiento
+  horizontal en vez de repetir los nombres de columna en cada registro.
 - No hay endpoint de estadísticas: los indicadores se calculan con las
   respuestas existentes.
 
