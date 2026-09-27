@@ -34,18 +34,58 @@ public class AuditLogRepository : IAuditLogRepository
 
         const string pageSql = """
         SELECT
-            id,
-            userId,
-            accion,
-            entidad,
-            entidadId,
-            nombreCampo,
-            valorAnterior,
-            valorNuevo,
-            cambioRealizado,
-            cambioAt
-        FROM dbo.auditLogs
-        ORDER BY cambioAt DESC, id DESC
+            audit.id,
+            audit.userId,
+            COALESCE(
+                affectedUser.username,
+                affectedDelete.username
+            ) AS affectedUsername,
+            audit.accion,
+            audit.entidad,
+            audit.entidadId,
+            audit.nombreCampo,
+            audit.valorAnterior,
+            audit.valorNuevo,
+            audit.cambioRealizado,
+            COALESCE(
+                actor.username,
+                actorDelete.username
+            ) AS actorUsername,
+            audit.cambioAt
+        FROM dbo.auditLogs AS audit
+        LEFT JOIN dbo.users AS affectedUser
+            ON affectedUser.id = COALESCE(
+                audit.userId,
+                CASE WHEN audit.entidad = N'users' THEN audit.entidadId END
+            )
+        LEFT JOIN dbo.users AS actor
+            ON actor.id = audit.cambioRealizado
+        OUTER APPLY
+        (
+            SELECT TOP (1) deletedUser.valorAnterior AS username
+            FROM dbo.auditLogs AS deletedUser
+            WHERE deletedUser.entidad = N'users'
+                AND deletedUser.entidadId = COALESCE(
+                    audit.userId,
+                    CASE WHEN audit.entidad = N'users' THEN audit.entidadId END
+                )
+                AND deletedUser.accion = N'DELETE'
+                AND deletedUser.nombreCampo = N'username'
+                AND deletedUser.valorAnterior IS NOT NULL
+            ORDER BY deletedUser.cambioAt DESC, deletedUser.id DESC
+        ) AS affectedDelete
+        OUTER APPLY
+        (
+            SELECT TOP (1) deletedActor.valorAnterior AS username
+            FROM dbo.auditLogs AS deletedActor
+            WHERE deletedActor.entidad = N'users'
+                AND deletedActor.entidadId = audit.cambioRealizado
+                AND deletedActor.accion = N'DELETE'
+                AND deletedActor.nombreCampo = N'username'
+                AND deletedActor.valorAnterior IS NOT NULL
+            ORDER BY deletedActor.cambioAt DESC, deletedActor.id DESC
+        ) AS actorDelete
+        ORDER BY audit.cambioAt DESC, audit.id DESC
         OFFSET @offset ROWS
         FETCH NEXT @pageSize ROWS ONLY;
         """;
@@ -65,6 +105,9 @@ public class AuditLogRepository : IAuditLogRepository
                 userId = reader.IsDBNull(reader.GetOrdinal("userId"))
                     ? null
                     : reader.GetInt32(reader.GetOrdinal("userId")),
+                affectedUsername = reader.IsDBNull(reader.GetOrdinal("affectedUsername"))
+                    ? null
+                    : reader.GetString(reader.GetOrdinal("affectedUsername")),
                 accion = reader.GetString(reader.GetOrdinal("accion")),
                 entidad = reader.GetString(reader.GetOrdinal("entidad")),
                 entidadId = reader.IsDBNull(reader.GetOrdinal("entidadId"))
@@ -82,6 +125,9 @@ public class AuditLogRepository : IAuditLogRepository
                 cambioRealizado = reader.IsDBNull(reader.GetOrdinal("cambioRealizado"))
                     ? null
                     : reader.GetInt32(reader.GetOrdinal("cambioRealizado")),
+                actorUsername = reader.IsDBNull(reader.GetOrdinal("actorUsername"))
+                    ? null
+                    : reader.GetString(reader.GetOrdinal("actorUsername")),
                 cambioAt = reader.GetDateTime(reader.GetOrdinal("cambioAt"))
             });
         }

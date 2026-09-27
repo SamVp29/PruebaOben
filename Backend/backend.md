@@ -371,8 +371,11 @@ Parámetros opcionales:
 La respuesta incluye page, pageSize, totalCount e items. Los registros
 se ordenan por cambioAt descendente y, como desempate, id descendente.
 Cada item devuelve las columnas de auditLogs, incluidos userId (usuario
-afectado) y cambioRealizado (actor que hizo el cambio). Son IDs porque
-la tabla no guarda copias históricas de los nombres.
+afectado) y cambioRealizado (actor que hizo el cambio), además de
+affectedUsername y actorUsername. Para usuarios existentes, el repositorio
+obtiene username desde users. Si la cuenta se eliminó físicamente, intenta
+recuperarlo de la fila DELETE que conserva el trigger. Los IDs originales
+se mantienen en la respuesta para no perder trazabilidad.
 
 Parámetros fuera de rango producen 400 Bad Request; sin un JWT válido,
 ASP.NET Core devuelve 401 Unauthorized.

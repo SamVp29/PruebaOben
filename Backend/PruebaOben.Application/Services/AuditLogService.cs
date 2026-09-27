@@ -34,6 +34,7 @@ public class AuditLogService : IAuditLogService
         {
             id = auditLog.id,
             userId = auditLog.userId,
+            affectedUsername = auditLog.affectedUsername,
             accion = auditLog.accion,
             entidad = auditLog.entidad,
             entidadId = auditLog.entidadId,
@@ -41,6 +42,7 @@ public class AuditLogService : IAuditLogService
             valorAnterior = auditLog.valorAnterior,
             valorNuevo = auditLog.valorNuevo,
             cambioRealizado = auditLog.cambioRealizado,
+            actorUsername = auditLog.actorUsername,
             cambioAt = auditLog.cambioAt
         };
     }

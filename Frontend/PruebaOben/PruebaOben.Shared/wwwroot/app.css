@@ -175,6 +175,10 @@ a {
     min-width: 520px;
 }
 
+.audit-table .mud-table-root {
+    min-width: 900px;
+}
+
 .data-table .mud-table-head .mud-table-cell {
     color: var(--app-muted);
     font-size: .75rem;
@@ -309,8 +313,7 @@ a {
     margin: -12px 0 18px;
 }
 
-.users-mobile-list,
-.audit-mobile-list {
+.users-mobile-list {
     display: none;
 }
 
@@ -365,19 +368,16 @@ a {
         width: 100%;
     }
 
-    .users-table-desktop,
-    .audit-table-desktop {
+    .users-table-desktop {
         display: none;
     }
 
-    .users-mobile-list,
-    .audit-mobile-list {
+    .users-mobile-list {
         display: grid;
         gap: 12px;
     }
 
-    .user-mobile-card,
-    .audit-mobile-card {
+    .user-mobile-card {
         min-width: 0;
         padding: 14px;
         border: 1px solid var(--app-border);
@@ -385,8 +385,7 @@ a {
         background: #fff;
     }
 
-    .user-mobile-heading,
-    .audit-mobile-heading {
+    .user-mobile-heading {
         display: flex;
         align-items: flex-start;
         justify-content: space-between;
@@ -418,22 +417,6 @@ a {
         flex-wrap: wrap;
         gap: 6px;
         margin-bottom: 8px;
-    }
-
-    .audit-mobile-heading {
-        align-items: center;
-    }
-
-    .audit-mobile-entity {
-        margin-top: 10px !important;
-        font-weight: 600 !important;
-    }
-
-    .audit-mobile-details {
-        display: grid;
-        gap: 3px;
-        margin: 10px 0;
-        color: var(--app-muted);
     }
 
     .audit-value {

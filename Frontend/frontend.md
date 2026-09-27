@@ -156,12 +156,14 @@ AUDITORÍA
 - Paginación con 25, 50 o 100 filas.
 - Presenta acción, entidad/campo, usuario afectado, actor, valores y
   fecha.
-- El actor/usuario se muestra como ID porque auditLogs no guarda una
-  copia histórica general de sus nombres. Los eventos de eliminación
-  física sí conservan ID, username y fullname. Si cambioRealizado es
-  NULL, se indica "No informado"; las filas históricas anteriores no
-  tienen actor retroactivo. Para auditoría de un usuario borrado
-  físicamente, la interfaz usa entidadId como ID afectado.
+- El usuario afectado y el actor se muestran por username, también en
+  cuentas eliminadas físicamente cuando el historial conserva ese dato.
+- La tabla conserva encabezados y filas en Web y MAUI; en pantallas
+  estrechas permite desplazamiento horizontal.
+- La API obtiene los usernames desde users y, para cuentas eliminadas
+  físicamente, desde el registro de auditoría que conserva ese dato. Los
+  eventos históricos sin actor muestran "No informado"; los usuarios sin
+  username disponible muestran "No disponible".
 - La ruta permite cualquier usuario autenticado, según la decisión
   tomada para el alcance actual.
 
@@ -325,9 +327,10 @@ adjunta el JWT como Bearer en las llamadas protegidas."
 recursos; el cliente no es una frontera de seguridad."
 
 ¿Cómo maneja la auditoría los nombres del actor?
-"El esquema guarda IDs, no nombres históricos. La interfaz presenta
-esos IDs. El API toma el ID del claim sub del JWT, lo establece en
-SESSION_CONTEXT en la misma conexión de escritura y el trigger lo guarda
-en cambioRealizado. Para una eliminación física también conserva el ID,
-username y nombre completo del usuario eliminado, pero no su correo ni
-su contraseña."
+"El API conserva los IDs para trazabilidad y resuelve los usernames al
+consultar la auditoría. Busca las cuentas existentes en users y, si una
+cuenta fue eliminada físicamente, recupera el username que conserva el
+trigger en el evento DELETE. El API toma el ID del claim sub del JWT, lo
+establece en SESSION_CONTEXT en la misma conexión de escritura y el trigger
+lo guarda en cambioRealizado. Los eventos antiguos sin actor continúan como
+'No informado'."
