@@ -195,17 +195,26 @@ responsive para que sus filas se puedan leer en móvil.
 6. CONFIGURACIÓN DE LA API
 --------------------------
 WEB
-La dirección está en `Api:BaseAddress` de
-PruebaOben.Web/appsettings.json. Se puede sustituir por configuración
-de entorno:
+La dirección de producción está en `Api:BaseAddress` de
+PruebaOben.Web/appsettings.json. En Development, el archivo
+appsettings.Development.json usa `http://localhost:5083/`, el mismo perfil
+HTTP local de API que consume el emulador. Este ajuste solo cambia el host
+Web y no modifica la configuración de MAUI.
+
+Se puede sustituir la dirección de Web por configuración de entorno:
 
 PowerShell:
-$env:Api__BaseAddress = "https://localhost:7250/"
+$env:Api__BaseAddress = "http://localhost:5083/"
 
 MAUI DEBUG
 La configuración se lee desde Resources/Raw/api-config.Development.json:
 - Android Emulator: `http://10.0.2.2:5083/`.
 - Windows: `https://localhost:7250/`.
+
+La dirección `10.0.2.2` es exclusiva del emulador Android; Web corre en el
+equipo anfitrión y usa `localhost`. Web y el emulador Android llegan al perfil
+HTTP `5083` durante el desarrollo local con archivos de configuración
+independientes. MAUI Windows conserva su dirección HTTPS `7250`.
 
 Para un dispositivo Android físico, `10.0.2.2` no sirve. Cambiar
 AndroidBaseAddress a la dirección LAN de la computadora, por ejemplo
